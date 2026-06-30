@@ -263,9 +263,6 @@ export default function EditorPage() {
   const [selectedItem, setSelectedItem] = useState<SequenceItem | null>(null);
   const [editingItem, setEditingItem] = useState<SequenceItem | null>(null);
   const [activeDragId, setActiveDragId] = useState<string | null>(null);
-  const [activeDragType, setActiveDragType] = useState<
-    "background" | "character" | "dialogue" | null
-  >(null);
 
   const bgInputRef = useRef<HTMLInputElement>(null);
   const charInputRef = useRef<HTMLInputElement>(null);
@@ -412,25 +409,13 @@ export default function EditorPage() {
   const handleDragStart = (event: DragStartEvent) => {
     const { active } = event;
     setActiveDragId(active.id as string);
-    
-    if (typeof active.id === "string" && active.id.startsWith("new-")) {
-      const type = active.id.replace("new-", "") as "background" | "character" | "dialogue";
-      setActiveDragType(type);
-    }
   };
 
   const handleDragEnd = async (event: DragEndEvent) => {
     const { active, over } = event;
     setActiveDragId(null);
-    setActiveDragType(null);
 
     if (!over || !sequence) return;
-
-    if (typeof active.id === "string" && active.id.startsWith("new-")) {
-      const type = active.id.replace("new-", "") as "background" | "character" | "dialogue";
-      await addItem(type);
-      return;
-    }
 
     if (active.id !== over.id) {
       const oldIndex = sequence.items.findIndex(
@@ -584,42 +569,37 @@ export default function EditorPage() {
 
           <div className="border-t border-primary/20 pt-4">
             <h4 className="font-display text-sm text-primary mb-4">
-              拖放新增元素
+              新增元素
             </h4>
-            <DndContext sensors={sensors} collisionDetection={closestCenter}>
-              <div className="grid grid-cols-3 gap-3 mb-6">
-                <div
-                  draggable
-                  onDragStart={() => setActiveDragType("background")}
-                  className="bg-emerald-600 hover:bg-emerald-500 rounded-xl p-3 cursor-grab active:cursor-grabbing transition-all hover:scale-105 flex flex-col items-center gap-2"
-                >
-                  <span className="material-symbols-outlined text-white text-xl">
-                    landscape
-                  </span>
-                  <span className="text-white text-xs font-display">場景</span>
-                </div>
-                <div
-                  draggable
-                  onDragStart={() => setActiveDragType("character")}
-                  className="bg-violet-600 hover:bg-violet-500 rounded-xl p-3 cursor-grab active:cursor-grabbing transition-all hover:scale-105 flex flex-col items-center gap-2"
-                >
-                  <span className="material-symbols-outlined text-white text-xl">
-                    person
-                  </span>
-                  <span className="text-white text-xs font-display">人物</span>
-                </div>
-                <div
-                  draggable
-                  onDragStart={() => setActiveDragType("dialogue")}
-                  className="bg-amber-600 hover:bg-amber-500 rounded-xl p-3 cursor-grab active:cursor-grabbing transition-all hover:scale-105 flex flex-col items-center gap-2"
-                >
-                  <span className="material-symbols-outlined text-white text-xl">
-                    chat
-                  </span>
-                  <span className="text-white text-xs font-display">對話</span>
-                </div>
-              </div>
-            </DndContext>
+            <div className="grid grid-cols-3 gap-3 mb-6">
+              <button
+                onClick={() => addItem("background")}
+                className="bg-emerald-600 hover:bg-emerald-500 rounded-xl p-3 cursor-pointer transition-all hover:scale-105 flex flex-col items-center gap-2"
+              >
+                <span className="material-symbols-outlined text-white text-xl">
+                  landscape
+                </span>
+                <span className="text-white text-xs font-display">場景</span>
+              </button>
+              <button
+                onClick={() => addItem("character")}
+                className="bg-violet-600 hover:bg-violet-500 rounded-xl p-3 cursor-pointer transition-all hover:scale-105 flex flex-col items-center gap-2"
+              >
+                <span className="material-symbols-outlined text-white text-xl">
+                  person
+                </span>
+                <span className="text-white text-xs font-display">人物</span>
+              </button>
+              <button
+                onClick={() => addItem("dialogue")}
+                className="bg-amber-600 hover:bg-amber-500 rounded-xl p-3 cursor-pointer transition-all hover:scale-105 flex flex-col items-center gap-2"
+              >
+                <span className="material-symbols-outlined text-white text-xl">
+                  chat
+                </span>
+                <span className="text-white text-xs font-display">對話</span>
+              </button>
+            </div>
           </div>
 
           <div className="border-t border-primary/20 pt-4">
