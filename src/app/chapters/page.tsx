@@ -6,6 +6,7 @@ import { useRouter } from "next/navigation";
 import {
   DndContext,
   DragOverlay,
+  useDroppable,
   closestCenter,
   KeyboardSensor,
   PointerSensor,
@@ -19,7 +20,7 @@ import {
   SortableContext,
   sortableKeyboardCoordinates,
   useSortable,
-  horizontalListSortingStrategy,
+  rectSortingStrategy,
 } from "@dnd-kit/sortable";
 import { CSS } from "@dnd-kit/utilities";
 
@@ -49,161 +50,6 @@ interface Sequence {
   chapter_item_id: string;
   title: string;
   description: string | null;
-}
-
-function ResizableChapterCard({
-  item,
-  index,
-  editMode,
-  sequences,
-  onClick,
-  onDelete,
-  onEdit,
-  onPositionChange,
-  onSizeChange,
-}: {
-  item: ChapterItem;
-  index: number;
-  editMode: boolean;
-  sequences: Sequence[];
-  onClick: () => void;
-  onDelete: () => void;
-  onEdit: () => void;
-  onPositionChange: (x: number, y: number) => void;
-  onSizeChange: (width: number, height: number) => void;
-}) {
-  const cardRef = useRef<HTMLDivElement>(null);
-  const [isDragging, setIsDragging] = useState(false);
-  const [isResizing, setIsResizing] = useState(false);
-  const [dragStart, setDragStart] = useState({ x: 0, y: 0 });
-  const [resizeStart, setResizeStart] = useState({ width: 0, height: 0, x: 0, y: 0 });
-
-  const handleMouseDown = (e: React.MouseEvent) => {
-    if (!editMode) return;
-    e.preventDefault();
-    setIsDragging(true);
-    setDragStart({ x: e.clientX - item.position_x, y: e.clientY - item.position_y });
-  };
-
-  const handleMouseMove = (e: MouseEvent) => {
-    if (isDragging) {
-      const newX = e.clientX - dragStart.x;
-      const newY = e.clientY - dragStart.y;
-      onPositionChange(Math.max(0, newX), Math.max(0, newY));
-    }
-    if (isResizing) {
-      const newWidth = resizeStart.width + (e.clientX - resizeStart.x);
-      const newHeight = resizeStart.height + (e.clientY - resizeStart.y);
-      onSizeChange(Math.max(200, newWidth), Math.max(150, newHeight));
-    }
-  };
-
-  const handleMouseUp = () => {
-    setIsDragging(false);
-    setIsResizing(false);
-  };
-
-  useEffect(() => {
-    if (isDragging || isResizing) {
-      window.addEventListener("mousemove", handleMouseMove);
-      window.addEventListener("mouseup", handleMouseUp);
-      return () => {
-        window.removeEventListener("mousemove", handleMouseMove);
-        window.removeEventListener("mouseup", handleMouseUp);
-      };
-    }
-  }, [isDragging, isResizing, dragStart, resizeStart]);
-
-  const handleResizeMouseDown = (e: React.MouseEvent) => {
-    if (!editMode) return;
-    e.preventDefault();
-    e.stopPropagation();
-    setIsResizing(true);
-    setResizeStart({
-      width: item.card_width,
-      height: item.card_height,
-      x: e.clientX,
-      y: e.clientY,
-    });
-  };
-
-  return (
-    <div
-      ref={cardRef}
-      className={`absolute ${isDragging || isResizing ? "z-20" : "z-10"}`}
-      style={{
-        left: item.position_x,
-        top: item.position_y,
-        width: item.card_width,
-        minHeight: item.card_height,
-      }}
-    >
-      <div
-        className={`relative bg-surface/80 backdrop-blur-md border border-primary/30 rounded-lg p-6 h-full flex flex-col hover:border-primary transition-all ${
-          editMode ? "cursor-move" : "cursor-pointer"
-        }`}
-        onMouseDown={handleMouseDown}
-      >
-        {editMode && (
-          <>
-            <button
-              onMouseDown={(e) => e.stopPropagation()}
-              onClick={(e) => {
-                e.stopPropagation();
-                onDelete();
-              }}
-              className="absolute top-2 right-2 text-muted hover:text-red-400 z-30"
-            >
-              <span className="material-symbols-outlined text-sm">close</span>
-            </button>
-            <button
-              onMouseDown={(e) => e.stopPropagation()}
-              onClick={(e) => {
-                e.stopPropagation();
-                onEdit();
-              }}
-              className="absolute bottom-2 right-2 text-muted hover:text-primary z-30"
-            >
-              <span className="material-symbols-outlined text-sm">edit</span>
-            </button>
-            <div
-              onMouseDown={handleResizeMouseDown}
-              className="absolute bottom-0 right-0 w-4 h-4 cursor-se-resize z-30"
-            >
-              <svg viewBox="0 0 24 24" className="w-full h-full text-primary opacity-50">
-                <path d="M22 22H20V20H22V22ZM22 18H20V16H22V18ZM18 22H16V20H18V22ZM22 14H20V12H22V14ZM14 22H12V20H14V22Z" fill="currentColor" />
-              </svg>
-            </div>
-          </>
-        )}
-        <div onClick={editMode ? undefined : onClick}>
-          <span className="text-primary text-5xl font-display mb-2">
-            {item.chapter_num || index + 1}
-          </span>
-          <h3 className="text-primary font-display text-xl mb-2">
-            {item.chapter_title}
-          </h3>
-          {item.chapter_desc && (
-            <p className="text-muted text-sm flex-grow">{item.chapter_desc}</p>
-          )}
-          <div className="mt-4 flex justify-between items-center">
-            {sequences && sequences.length > 0 ? (
-              <span className="text-xs text-muted">
-                有 {sequences.length} 個對話序列
-              </span>
-            ) : (
-              <span className="text-xs text-muted/50">尚未建立對話序列</span>
-            )}
-            {!editMode && (
-              <span className="material-symbols-outlined text-primary group-hover:translate-x-2 transition-transform">
-                arrow_forward
-              </span>
-            )}
-          </div>
-        </div>
-      </div>
-    </div>
-  );
 }
 
 function SortableChapterCard({
@@ -242,37 +88,39 @@ function SortableChapterCard({
     <div
       ref={setNodeRef}
       style={style}
-      className={`min-w-[280px] snap-center group ${isDragging ? "z-10" : ""}`}
+      className={`${isDragging ? "z-10" : ""}`}
     >
       <div
-        className={`relative bg-surface/80 backdrop-blur-md border border-primary/30 rounded-lg p-6 h-full flex flex-col hover:border-primary transition-all`}
+        className={`relative bg-surface/80 backdrop-blur-md border border-primary/30 rounded-lg p-6 h-full flex flex-col hover:border-primary transition-all ${
+          editMode ? "border-dashed border-2" : ""
+        }`}
       >
         {editMode && (
           <>
             <div
               {...attributes}
               {...listeners}
-              className="absolute top-2 left-2 text-muted hover:text-primary cursor-grab active:cursor-grabbing"
+              className="absolute top-2 left-2 text-muted hover:text-primary cursor-grab active:cursor-grabbing z-20"
             >
-              <span className="material-symbols-outlined text-sm">drag_indicator</span>
+              <span className="material-symbols-outlined text-lg">drag_indicator</span>
             </div>
             <button
               onClick={(e) => {
                 e.stopPropagation();
                 onDelete();
               }}
-              className="absolute top-2 right-2 text-muted hover:text-red-400"
+              className="absolute top-2 right-2 text-muted hover:text-red-400 z-20"
             >
-              <span className="material-symbols-outlined text-sm">close</span>
+              <span className="material-symbols-outlined text-lg">close</span>
             </button>
             <button
               onClick={(e) => {
                 e.stopPropagation();
                 onEdit();
               }}
-              className="absolute bottom-2 right-2 text-muted hover:text-primary"
+              className="absolute bottom-2 right-2 text-muted hover:text-primary z-20"
             >
-              <span className="material-symbols-outlined text-sm">edit</span>
+              <span className="material-symbols-outlined text-lg">edit</span>
             </button>
           </>
         )}
@@ -333,6 +181,8 @@ export default function ChapterSelectionPage() {
   const [googleUserEmail, setGoogleUserEmail] = useState<string | null>(null);
   
   const [newItem, setNewItem] = useState({ num: "", title: "", desc: "" });
+  const [showAddModal, setShowAddModal] = useState(false);
+  const [showSettingsModal, setShowSettingsModal] = useState(false);
   const bgInputRef = useRef<HTMLInputElement>(null);
   const [activeDragId, setActiveDragId] = useState<string | null>(null);
 
@@ -611,6 +461,7 @@ export default function ChapterSelectionPage() {
       });
       
       setNewItem({ num: "", title: "", desc: "" });
+      setShowAddModal(false);
       fetchChapters();
     } catch (error) {
       console.error("Add item error:", error);
@@ -740,9 +591,6 @@ export default function ChapterSelectionPage() {
 
         <main className="relative z-10 flex-grow flex items-center justify-center px-12 py-12">
           <div className="w-full max-w-7xl">
-            <div className="hidden lg:block absolute top-[90%] left-[5%] right-[5%] h-[2px] bg-muted overflow-hidden">
-              <div className="h-full bg-primary w-2/3 shadow-[0_0_10px_#D3BC8E]"></div>
-            </div>
             <DndContext
               sensors={sensors}
               collisionDetection={closestCenter}
@@ -751,9 +599,9 @@ export default function ChapterSelectionPage() {
             >
               <SortableContext
                 items={currentChapter?.items.map((item) => item.id) || []}
-                strategy={horizontalListSortingStrategy}
+                strategy={rectSortingStrategy}
               >
-                <div className="flex flex-row gap-12 overflow-x-auto pb-12 pt-8 px-4 snap-x snap-mandatory scroll-smooth items-stretch">
+                <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-6 p-4">
                   {currentChapter?.items.map((item, index) => (
                     <SortableChapterCard
                       key={item.id}
@@ -770,16 +618,14 @@ export default function ChapterSelectionPage() {
               </SortableContext>
               <DragOverlay>
                 {activeDragId && currentChapter?.items.find((item) => item.id === activeDragId) ? (
-                  <div className="min-w-[280px]">
-                    <div className="bg-surface/80 backdrop-blur-md border border-primary rounded-lg p-6 shadow-2xl">
-                      <span className="text-primary text-5xl font-display">
-                        {currentChapter?.items.find((item) => item.id === activeDragId)?.chapter_num || 
-                         (currentChapter?.items.findIndex((item) => item.id === activeDragId)! + 1)}
-                      </span>
-                      <h3 className="text-primary font-display text-xl mt-2">
-                        {currentChapter?.items.find((item) => item.id === activeDragId)?.chapter_title}
-                      </h3>
-                    </div>
+                  <div className="bg-surface/80 backdrop-blur-md border border-primary rounded-lg p-6 shadow-2xl">
+                    <span className="text-primary text-5xl font-display">
+                      {currentChapter?.items.find((item) => item.id === activeDragId)?.chapter_num || 
+                       (currentChapter?.items.findIndex((item) => item.id === activeDragId)! + 1)}
+                    </span>
+                    <h3 className="text-primary font-display text-xl mt-2">
+                      {currentChapter?.items.find((item) => item.id === activeDragId)?.chapter_title}
+                    </h3>
                   </div>
                 ) : null}
               </DragOverlay>
@@ -789,63 +635,49 @@ export default function ChapterSelectionPage() {
       </div>
 
       {editMode && (
-        <div className="fixed top-0 right-0 h-full w-96 edit-panel z-50 overflow-y-auto">
-          <div className="p-6 space-y-6">
-            <div className="flex justify-between border-b border-primary/20 pb-4">
-              <h3 className="font-display text-xl text-primary">編輯模式</h3>
-              <button onClick={toggleEditMode} className="text-muted hover:text-primary">
+        <>
+          <button
+            onClick={() => setShowAddModal(true)}
+            className="fixed bottom-24 right-4 z-50 bg-primary text-black px-4 py-3 rounded-full font-display text-sm flex items-center gap-2 shadow-lg hover:bg-primary/90 transition-colors"
+          >
+            <span className="material-symbols-outlined">add</span>
+            新增章節
+          </button>
+
+          <button
+            onClick={() => setShowSettingsModal(true)}
+            className="fixed bottom-40 right-4 z-50 bg-surface/90 text-primary px-4 py-3 rounded-full font-display text-sm flex items-center gap-2 shadow-lg hover:bg-surface transition-colors border border-primary/30"
+          >
+            <span className="material-symbols-outlined">settings</span>
+            頁面設定
+          </button>
+        </>
+      )}
+
+      {showAddModal && (
+        <div className="fixed inset-0 z-[100] bg-black/80 flex items-center justify-center">
+          <div className="p-8 rounded-lg max-w-md w-full mx-4" style={{ background: "rgba(31,37,47,0.95)", border: "1px solid rgba(211,188,142,0.3)" }}>
+            <div className="flex justify-between items-center mb-6">
+              <h3 className="font-display text-xl text-primary">新增章節</h3>
+              <button onClick={() => setShowAddModal(false)} className="text-muted hover:text-primary">
                 <span className="material-symbols-outlined">close</span>
               </button>
             </div>
-
-            <div className="space-y-2">
-              <label className="font-display text-sm text-primary">頁面標題</label>
-              <input
-                type="text"
-                value={currentChapter?.page_title || ""}
-                onChange={(e) => setCurrentChapter(prev => prev ? { ...prev, page_title: e.target.value } : null)}
-                className="edit-input w-full px-4 py-2 rounded"
-                placeholder="輸入標題"
-              />
-            </div>
-
-            <div className="space-y-2">
-              <label className="font-display text-sm text-primary">副標題</label>
-              <input
-                type="text"
-                value={currentChapter?.page_subtitle || ""}
-                onChange={(e) => setCurrentChapter(prev => prev ? { ...prev, page_subtitle: e.target.value } : null)}
-                className="edit-input w-full px-4 py-2 rounded"
-                placeholder="輸入副標題"
-              />
-            </div>
-
-            <div className="space-y-2">
-              <label className="font-display text-sm text-primary">背景圖片</label>
-              <input ref={bgInputRef} type="file" accept="image/*" className="hidden" onChange={handleImageUpload} />
-              <div className="flex gap-2">
-                <button onClick={() => bgInputRef.current?.click()} className="edit-btn px-4 py-2 rounded">
-                  {loading ? "上傳中..." : "上傳"}
-                </button>
-                <button onClick={() => setCurrentChapter(prev => prev ? { ...prev, background_image: null } : null)} className="edit-btn px-4 py-2 rounded">
-                  清除
-                </button>
-              </div>
-              {currentChapter?.background_image && (
-                <img src={currentChapter.background_image} className="max-w-[100px] max-h-[100px] rounded mt-2" alt="背景預覽" />
-              )}
-            </div>
-
-            <div className="pt-4 border-t border-primary/20">
-              <h4 className="font-display text-sm text-primary mb-4">新增章節項目</h4>
-              <div className="space-y-3">
+            
+            <div className="space-y-4">
+              <div className="space-y-2">
+                <label className="font-display text-sm text-primary">章節編號</label>
                 <input
                   type="text"
                   value={newItem.num}
                   onChange={(e) => setNewItem(prev => ({ ...prev, num: e.target.value }))}
                   className="edit-input w-full px-4 py-2 rounded"
-                  placeholder="章節編號（如 I, II, III）"
+                  placeholder="如 I, II, III"
                 />
+              </div>
+
+              <div className="space-y-2">
+                <label className="font-display text-sm text-primary">章節標題</label>
                 <input
                   type="text"
                   value={newItem.title}
@@ -853,66 +685,75 @@ export default function ChapterSelectionPage() {
                   className="edit-input w-full px-4 py-2 rounded"
                   placeholder="章節標題"
                 />
-                <input
-                  type="text"
+              </div>
+
+              <div className="space-y-2">
+                <label className="font-display text-sm text-primary">章節描述</label>
+                <textarea
                   value={newItem.desc}
                   onChange={(e) => setNewItem(prev => ({ ...prev, desc: e.target.value }))}
-                  className="edit-input w-full px-4 py-2 rounded"
+                  className="edit-input w-full px-4 py-2 rounded min-h-[80px]"
                   placeholder="章節描述"
                 />
-                <button onClick={addChapterItem} className="edit-btn w-full px-4 py-2 rounded font-display flex items-center justify-center gap-2">
-                  <span className="material-symbols-outlined">add</span>新增章節
-                </button>
               </div>
-            </div>
 
-            <div className="pt-4 border-t border-primary/20">
-              <h4 className="font-display text-sm text-primary mb-4">章節序列管理</h4>
-              <div className="space-y-2 max-h-[200px] overflow-y-auto">
-                {currentChapter?.items.map((item) => (
-                  <div key={item.id} className="bg-surface/40 rounded p-3">
-                    <div className="flex justify-between items-center mb-2">
-                      <span className="text-text-light text-sm">{item.chapter_title}</span>
-                      <button
-                        onClick={() => createSequenceForItem(item.id, `${item.chapter_title} - 對話序列`)}
-                        className="edit-btn px-2 py-1 rounded text-xs flex items-center gap-1"
-                      >
-                        <span className="material-symbols-outlined text-xs">add</span>
-                        新增序列
-                      </button>
-                    </div>
-                    {sequences[item.id] && sequences[item.id].length > 0 && (
-                      <div className="space-y-1">
-                        {sequences[item.id].map((seq) => (
-                          <div 
-                            key={seq.id}
-                            className="flex justify-between items-center bg-black/20 rounded px-2 py-1"
-                          >
-                            <span className="text-muted text-xs truncate">{seq.title}</span>
-                            <div className="flex gap-1">
-                              <button
-                                onClick={() => router.push(`/editor/${seq.id}`)}
-                                className="text-primary hover:text-white text-xs"
-                              >
-                                編輯
-                              </button>
-                              <button
-                                onClick={() => router.push(`/play/${seq.id}`)}
-                                className="text-primary hover:text-white text-xs"
-                              >
-                                播放
-                              </button>
-                            </div>
-                          </div>
-                        ))}
-                      </div>
-                    )}
-                  </div>
-                ))}
+              <button onClick={addChapterItem} className="edit-btn w-full px-4 py-3 rounded font-display flex items-center justify-center gap-2">
+                <span className="material-symbols-outlined">add</span>新增章節
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {showSettingsModal && (
+        <div className="fixed inset-0 z-[100] bg-black/80 flex items-center justify-center">
+          <div className="p-8 rounded-lg max-w-md w-full mx-4" style={{ background: "rgba(31,37,47,0.95)", border: "1px solid rgba(211,188,142,0.3)" }}>
+            <div className="flex justify-between items-center mb-6">
+              <h3 className="font-display text-xl text-primary">頁面設定</h3>
+              <button onClick={() => setShowSettingsModal(false)} className="text-muted hover:text-primary">
+                <span className="material-symbols-outlined">close</span>
+              </button>
+            </div>
+            
+            <div className="space-y-4">
+              <div className="space-y-2">
+                <label className="font-display text-sm text-primary">頁面標題</label>
+                <input
+                  type="text"
+                  value={currentChapter?.page_title || ""}
+                  onChange={(e) => setCurrentChapter(prev => prev ? { ...prev, page_title: e.target.value } : null)}
+                  className="edit-input w-full px-4 py-2 rounded"
+                  placeholder="輸入標題"
+                />
               </div>
-            </div>
 
-            <div className="pt-4 border-t border-primary/20 space-y-3">
+              <div className="space-y-2">
+                <label className="font-display text-sm text-primary">副標題</label>
+                <input
+                  type="text"
+                  value={currentChapter?.page_subtitle || ""}
+                  onChange={(e) => setCurrentChapter(prev => prev ? { ...prev, page_subtitle: e.target.value } : null)}
+                  className="edit-input w-full px-4 py-2 rounded"
+                  placeholder="輸入副標題"
+                />
+              </div>
+
+              <div className="space-y-2">
+                <label className="font-display text-sm text-primary">背景圖片</label>
+                <input ref={bgInputRef} type="file" accept="image/*" className="hidden" onChange={handleImageUpload} />
+                <div className="flex gap-2">
+                  <button onClick={() => bgInputRef.current?.click()} className="edit-btn px-4 py-2 rounded">
+                    {loading ? "上傳中..." : "上傳"}
+                  </button>
+                  <button onClick={() => setCurrentChapter(prev => prev ? { ...prev, background_image: null } : null)} className="edit-btn px-4 py-2 rounded">
+                    清除
+                  </button>
+                </div>
+                {currentChapter?.background_image && (
+                  <img src={currentChapter.background_image} className="max-w-[100px] max-h-[100px] rounded mt-2" alt="背景預覽" />
+                )}
+              </div>
+
               <button onClick={updateChapter} className="edit-btn w-full px-4 py-3 rounded font-display flex items-center justify-center gap-2">
                 <span className="material-symbols-outlined">save</span>儲存設定
               </button>
