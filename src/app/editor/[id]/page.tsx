@@ -285,8 +285,14 @@ export default function EditorPage() {
     try {
       const res = await fetch(`/api/sequences?id=${sequenceId}`);
       const data = await res.json();
+      
+      if (data.error) {
+        console.error("API error:", data.error);
+        return;
+      }
+      
       setSequence(data);
-      updatePreview(data.items);
+      updatePreview(data.items || []);
     } catch (error) {
       console.error("Failed to fetch sequence:", error);
     }

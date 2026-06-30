@@ -35,9 +35,17 @@ export async function GET(request: NextRequest) {
       }
 
       const row = result.rows[0];
+      let items = [];
+      try {
+        const parsed = JSON.parse(row.items as string || "[]");
+        items = Array.isArray(parsed) ? parsed.filter((item: any) => item && item.id) : [];
+      } catch {
+        items = [];
+      }
+      
       const sequence = {
         ...row,
-        items: JSON.parse(row.items as string || "[]").sort((a: any, b: any) => a.display_order - b.display_order),
+        items: items.sort((a: any, b: any) => a.display_order - b.display_order),
       };
 
       return NextResponse.json(sequence);
@@ -65,10 +73,19 @@ export async function GET(request: NextRequest) {
         args: [chapterItemId],
       });
 
-      const sequences = result.rows.map((row) => ({
-        ...row,
-        items: JSON.parse(row.items as string || "[]").sort((a: any, b: any) => a.display_order - b.display_order),
-      }));
+      const sequences = result.rows.map((row) => {
+        let items = [];
+        try {
+          const parsed = JSON.parse(row.items as string || "[]");
+          items = Array.isArray(parsed) ? parsed.filter((item: any) => item && item.id) : [];
+        } catch {
+          items = [];
+        }
+        return {
+          ...row,
+          items: items.sort((a: any, b: any) => a.display_order - b.display_order),
+        };
+      });
 
       return NextResponse.json(sequences);
     }
@@ -92,10 +109,19 @@ export async function GET(request: NextRequest) {
             GROUP BY ds.id`,
     });
 
-    const sequences = result.rows.map((row) => ({
-      ...row,
-      items: JSON.parse(row.items as string || "[]").sort((a: any, b: any) => a.display_order - b.display_order),
-    }));
+    const sequences = result.rows.map((row) => {
+      let items = [];
+      try {
+        const parsed = JSON.parse(row.items as string || "[]");
+        items = Array.isArray(parsed) ? parsed.filter((item: any) => item && item.id) : [];
+      } catch {
+        items = [];
+      }
+      return {
+        ...row,
+        items: items.sort((a: any, b: any) => a.display_order - b.display_order),
+      };
+    });
 
     return NextResponse.json(sequences);
   } catch (error) {
