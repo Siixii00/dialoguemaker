@@ -1,0 +1,232 @@
+<!DOCTYPE html>
+
+<html class="dark" lang="en"><head>
+<meta charset="utf-8"/>
+<meta content="width=device-width, initial-scale=1.0" name="viewport"/>
+<title>System Menu</title>
+<link href="https://fonts.googleapis.com/css2?family=Playfair+Display:ital,wght@0,400..900;1,400..900&amp;family=Lora:ital,wght@0,400..700;1,400..700&amp;display=swap" rel="stylesheet"/>
+<link href="https://fonts.googleapis.com/css2?family=Material+Symbols+Outlined:wght,FILL@100..700,0..1&amp;display=swap" rel="stylesheet"/>
+<link href="https://fonts.googleapis.com/css2?family=Material+Symbols+Outlined:wght,FILL@100..700,0..1&amp;display=swap" rel="stylesheet"/>
+<script src="https://cdn.tailwindcss.com?plugins=forms,container-queries"></script>
+<script id="tailwind-config">
+  tailwind.config = {
+    darkMode: "class",
+    theme: {
+      extend: {
+        colors: {
+          "primary": "#e6a219",
+          "background-light": "#f8f7f6",
+          "background-dark": "#211c11",
+          "surface-dark": "rgba(31, 37, 47, 0.9)",
+          "muted": "#8A95A5",
+          "text-light": "#ECE5D8"
+        },
+        fontFamily: {
+          "display": ["Playfair Display", "serif"],
+          "body": ["Lora", "serif"]
+        },
+        borderRadius: {"DEFAULT": "0.25rem", "lg": "0.5rem", "xl": "0.75rem", "full": "9999px"},
+      },
+    },
+  }
+</script>
+<style>body {
+    font-family: "Lora", serif;
+    background-image: url(https://lh3.googleusercontent.com/aida-public/AB6AXuDrbvEYnwC-PApRFnd4J-qe5j4jkrkEF_dnoXbPpS-NS0p-gBuov4LtPhWS554y_Ee-H1YhTvz1V3sV6E3hDNbRV-y_9h_vNsOPrAo1d468Ya3ar2Ejv5hAFeJiypeN_NfcX5AcMll6uThM2MEPvrwhl-KrK2kXkitwnMQPNAobxN1pH6b4A0fySy9YbyBqEVM0mQLyfaRgNZQN-anklP_AEgDnz1V9aJWpSxMMX_B_fHIaFOYQ4LNfFLN630TY7kPB087YuFy-S2k);
+    background-size: cover;
+    background-position: center
+    }
+.glass-panel {
+    background-color: var(--color-surface-dark, rgba(31, 37, 47, 0.9));
+    backdrop-filter: blur(12px);
+    -webkit-backdrop-filter: blur(12px);
+    border: 1px solid rgba(230, 162, 25, 0.2)
+    }
+.nav-item {
+    font-family: "Playfair Display", serif;
+    transition: all 0.2s ease-in-out;
+    border-left: 4px solid transparent
+    }
+.nav-item:hover, .nav-item.active {
+    border-left-color: theme("colors.primary");
+    color: theme("colors.primary");
+    background-color: rgba(255, 255, 255, 0.05)
+    }
+.modal-transition {
+    transition: opacity 0.3s ease, transform 0.3s ease
+    }
+.modal-hidden {
+    opacity: 0;
+    transform: scale(0.95);
+    pointer-events: none
+    }
+/* Custom Scrollbar for content area */
+::-webkit-scrollbar {
+    width: 6px
+    }
+::-webkit-scrollbar-track {
+    background: transparent
+    }
+::-webkit-scrollbar-thumb {
+    background: rgba(230, 162, 25, 0.3);
+    border-radius: 4px
+    }
+@media screen and (orientation: portrait) {
+    #portrait-overlay {
+        display: flex !important;
+    }
+    #system-menu {
+        display: none !important;
+    }
+}
+</style>
+</head>
+<body class="min-h-screen w-full flex items-center justify-center overflow-hidden" data-alt="A detailed view of a lush, mystical ancient forest at twilight. Glowing motes of light drift through the air, illuminating moss-covered ruins. The atmosphere is serene and magical, painted in deep blues, greens, and soft golds, perfectly suiting a high-fantasy UI backdrop.">
+<!-- Ambient Background Effect -->
+<div class="absolute inset-0 bg-black/40 backdrop-blur-sm z-0"></div>
+<!-- Portrait Orientation Warning Overlay -->
+<div class="fixed inset-0 z-50 flex-col items-center justify-center bg-background-dark/95 backdrop-blur-md hidden" id="portrait-overlay">
+<span class="material-symbols-outlined text-6xl text-primary mb-6 animate-pulse" style="transform: rotate(-90deg);">screen_rotation</span>
+<h2 class="font-display text-3xl text-text-light mb-2 text-center px-4">Please Rotate Your Device</h2>
+<p class="text-muted text-center max-w-sm px-6 font-body text-lg">This journey is best experienced in landscape mode to preserve the mystical atmosphere.</p>
+</div>
+<!-- System Menu Modal -->
+<div class="glass-panel relative z-10 w-full h-full sm:w-[90vw] sm:h-[90vh] lg:w-[80vw] lg:h-[819px] rounded-none sm:rounded-lg flex flex-row modal-transition shadow-2xl overflow-hidden" id="system-menu">
+<!-- Top Bar for Mobile / Decorative Header -->
+<div class="absolute top-0 left-0 w-full h-1 bg-gradient-to-r from-transparent via-primary to-transparent opacity-50 sm:hidden"></div>
+<!-- Close Button -->
+<button aria-label="Close Menu" class="absolute top-2 sm:top-4 right-2 sm:right-4 w-10 h-10 sm:w-12 sm:h-12 flex items-center justify-center text-primary hover:text-white transition-colors z-20 group" onclick="closeMenu()">
+<span class="material-symbols-outlined text-2xl sm:text-3xl transition-transform group-hover:rotate-90">close</span>
+</button>
+<!-- Sidebar Navigation (Landscape optimized) -->
+<nav class="w-[160px] sm:w-[200px] lg:w-[250px] flex-shrink-0 border-r border-muted/30 flex flex-col justify-start order-1 bg-surface-dark/50 sm:bg-transparent z-20 h-full overflow-y-auto">
+<!-- Decorative Title -->
+<div class="py-6 sm:py-8 px-4 sm:px-6 border-b border-muted/20">
+<h2 class="font-display text-primary text-lg sm:text-xl tracking-widest uppercase">System</h2>
+</div>
+<div class="flex flex-col w-full">
+<!-- Save -->
+<button class="nav-item flex-none flex flex-row items-center gap-3 px-4 sm:px-6 py-4 sm:py-5 text-text-light/80 hover:text-primary active">
+<span class="material-symbols-outlined text-lg lg:hidden">save</span>
+<span class="text-sm sm:text-base lg:text-lg tracking-wide">Save</span>
+</button>
+<!-- Load -->
+<button class="nav-item flex-none flex flex-row items-center gap-3 px-4 sm:px-6 py-4 sm:py-5 text-text-light/80 hover:text-primary">
+<span class="material-symbols-outlined text-lg lg:hidden">folder_open</span>
+<span class="text-sm sm:text-base lg:text-lg tracking-wide">Load</span>
+</button>
+<!-- Settings -->
+<button class="nav-item flex-none flex flex-row items-center gap-3 px-4 sm:px-6 py-4 sm:py-5 text-text-light/80 hover:text-primary">
+<span class="material-symbols-outlined text-lg lg:hidden">settings</span>
+<span class="text-sm sm:text-base lg:text-lg tracking-wide">Settings</span>
+</button>
+<!-- Log -->
+<button class="nav-item flex-none flex flex-row items-center gap-3 px-4 sm:px-6 py-4 sm:py-5 text-text-light/80 hover:text-primary">
+<span class="material-symbols-outlined text-lg lg:hidden">history</span>
+<span class="text-sm sm:text-base lg:text-lg tracking-wide">Log</span>
+</button>
+</div>
+<!-- Decorative bottom element -->
+<div class="flex flex-grow items-end p-4 sm:p-6 opacity-30 justify-center lg:justify-start">
+<span class="material-symbols-outlined text-primary text-2xl sm:text-4xl">auto_awesome</span>
+</div>
+</nav>
+<!-- Main Content Area -->
+<main class="flex-grow flex flex-col order-2 overflow-hidden relative">
+<!-- Decorative Corners -->
+<span class="material-symbols-outlined absolute top-2 left-2 text-primary/40 text-sm hidden sm:block">diamond</span>
+<span class="material-symbols-outlined absolute bottom-2 left-2 text-primary/40 text-sm hidden sm:block">diamond</span>
+<span class="material-symbols-outlined absolute bottom-2 right-2 text-primary/40 text-sm hidden sm:block">diamond</span>
+<!-- Content Header -->
+<header class="px-6 sm:px-8 pt-6 sm:pt-8 pb-3 sm:pb-4 border-b border-muted/10 shrink-0">
+<h1 class="font-display text-2xl sm:text-3xl text-text-light">Settings</h1>
+<p class="text-muted text-xs sm:text-sm mt-1">Adjust your journey's parameters</p>
+</header>
+<!-- Scrollable Content View -->
+<div class="flex-grow overflow-y-auto px-6 sm:px-8 py-4 sm:py-8 space-y-8 sm:space-y-10">
+<!-- Audio Section -->
+<section class="space-y-4 sm:space-y-6">
+<h3 class="font-display text-lg sm:text-xl text-primary border-b border-primary/20 pb-2 flex items-center gap-2">
+<span class="material-symbols-outlined text-sm">volume_up</span>
+            Audio
+          </h3>
+<div class="space-y-4 max-w-xl">
+<!-- Master Volume -->
+<div class="flex flex-col gap-2">
+<div class="flex justify-between text-text-light text-xs sm:text-sm">
+<span>Master Volume</span>
+<span class="text-primary">80%</span>
+</div>
+<input class="w-full h-1 bg-muted/30 rounded-lg appearance-none cursor-pointer accent-primary" max="100" min="0" type="range" value="80"/>
+</div>
+<!-- Music Volume -->
+<div class="flex flex-col gap-2">
+<div class="flex justify-between text-text-light text-xs sm:text-sm">
+<span>Music</span>
+<span class="text-primary">100%</span>
+</div>
+<input class="w-full h-1 bg-muted/30 rounded-lg appearance-none cursor-pointer accent-primary" max="100" min="0" type="range" value="100"/>
+</div>
+<!-- Voice Volume -->
+<div class="flex flex-col gap-2">
+<div class="flex justify-between text-text-light text-xs sm:text-sm">
+<span>Voice</span>
+<span class="text-primary">60%</span>
+</div>
+<input class="w-full h-1 bg-muted/30 rounded-lg appearance-none cursor-pointer accent-primary" max="100" min="0" type="range" value="60"/>
+</div>
+</div>
+</section>
+<!-- Display Section -->
+<section class="space-y-4 sm:space-y-6 pb-8">
+<h3 class="font-display text-lg sm:text-xl text-primary border-b border-primary/20 pb-2 flex items-center gap-2">
+<span class="material-symbols-outlined text-sm">desktop_windows</span>
+            Display
+          </h3>
+<div class="space-y-6 max-w-xl">
+<!-- Text Speed -->
+<div class="flex flex-col sm:flex-row sm:items-center justify-between gap-3">
+<span class="text-text-light text-xs sm:text-sm">Text Speed</span>
+<div class="flex gap-2">
+<button class="px-3 sm:px-4 py-1 border border-muted/30 rounded text-xs sm:text-sm text-text-light hover:border-primary hover:text-primary transition-colors">Normal</button>
+<button class="px-3 sm:px-4 py-1 border border-primary rounded text-xs sm:text-sm text-primary bg-primary/10 transition-colors">Fast</button>
+<button class="px-3 sm:px-4 py-1 border border-muted/30 rounded text-xs sm:text-sm text-text-light hover:border-primary hover:text-primary transition-colors">Instant</button>
+</div>
+</div>
+<!-- Auto-Forward -->
+<div class="flex flex-col sm:flex-row sm:items-center justify-between gap-3">
+<span class="text-text-light text-xs sm:text-sm">Auto-Forward Delay</span>
+<input class="w-full sm:w-48 h-1 bg-muted/30 rounded-lg appearance-none cursor-pointer accent-primary" max="5" min="1" type="range" value="3"/>
+</div>
+</div>
+</section>
+</div>
+</main>
+</div>
+<script>
+    function closeMenu() {
+      const menu = document.getElementById('system-menu');
+      menu.classList.add('modal-hidden');
+      
+      // Optional: Add logic here to return to the game or previous screen after animation
+      // setTimeout(() => { window.history.back(); }, 300);
+    }
+
+    // Interactive Nav Items Logic
+    document.querySelectorAll('.nav-item').forEach(item => {
+      item.addEventListener('click', function() {
+        // Remove active class from all
+        document.querySelectorAll('.nav-item').forEach(nav => nav.classList.remove('active', 'border-primary', 'text-primary', 'bg-white/5'));
+        
+        // Add active class to clicked
+        this.classList.add('active');
+        
+        // Update header title based on selection
+        const titleText = this.querySelector('span:not(.material-symbols-outlined)').innerText;
+        document.querySelector('header h1').innerText = titleText;
+        
+        // Here you would typically toggle visibility of content sections based on the selected tab
+      });
+    });
+  </script>
+</body></html>

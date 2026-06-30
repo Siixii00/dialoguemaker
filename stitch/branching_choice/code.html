@@ -1,0 +1,174 @@
+<!DOCTYPE html>
+
+<html class="dark" lang="en"><head>
+<meta charset="utf-8"/>
+<meta content="width=device-width, initial-scale=1.0" name="viewport"/>
+<title>Teyvat Elegance - Branching Choice</title>
+<script src="https://cdn.tailwindcss.com?plugins=forms,container-queries"></script>
+<link href="https://fonts.googleapis.com/css2?family=Playfair+Display:ital,wght@0,400..900;1,400..900&amp;display=swap" rel="stylesheet"/>
+<link href="https://fonts.googleapis.com/css2?family=Material+Symbols+Outlined:wght,FILL@100..700,0..1&amp;display=swap" rel="stylesheet"/>
+<script id="tailwind-config">
+      tailwind.config = {
+        darkMode: "class",
+        theme: {
+          extend: {
+            colors: {
+              "primary": "#e6a219",
+              "background-light": "#f8f7f6",
+              "background-dark": "#211c11",
+              "surface": "#1F252F",
+              "surface-hover": "#2B333E"
+            },
+            fontFamily: {
+              "display": ["Playfair Display", "serif"]
+            },
+            borderRadius: {"DEFAULT": "0.25rem", "lg": "0.5rem", "xl": "0.75rem", "full": "9999px"},
+            animation: {
+                'timer-shrink': 'shrink 10s linear forwards',
+                'pulse-glow': 'pulse-glow 2s cubic-bezier(0.4, 0, 0.6, 1) infinite',
+            },
+            keyframes: {
+                shrink: {
+                    '0%': { width: '100%' },
+                    '100%': { width: '0%' }
+                },
+                'pulse-glow': {
+                    '0%, 100%': { textShadow: '0 0 8px rgba(230, 162, 25, 0.4)' },
+                    '50%': { textShadow: '0 0 16px rgba(230, 162, 25, 0.8)' },
+                }
+            }
+          },
+        },
+      }
+    </script>
+<style>
+        .choice-btn {
+            transition: all 0.3s ease;
+            position: relative;
+        }
+        
+        .choice-btn::before, .choice-btn::after {
+            content: '';
+            position: absolute;
+            left: 0;
+            width: 100%;
+            height: 1px;
+            background-color: transparent;
+            transition: background-color 0.3s ease;
+        }
+        
+        .choice-btn::before { top: 0; }
+        .choice-btn::after { bottom: 0; }
+        
+        .choice-btn:hover {
+            background-color: theme('colors.surface-hover');
+            text-shadow: 0 0 10px rgba(230, 162, 25, 0.5);
+        }
+        
+        .choice-btn:hover::before, .choice-btn:hover::after {
+            background-color: theme('colors.primary');
+        }
+        
+        .choice-btn:active {
+            background-color: theme('colors.primary');
+            color: theme('colors.surface');
+            transform: scale(0.98);
+        }
+
+        .diamond {
+            width: 8px;
+            height: 8px;
+            background-color: theme('colors.primary');
+            transform: rotate(45deg);
+            display: inline-block;
+            transition: all 0.3s ease;
+        }
+        
+        .choice-btn:hover .diamond {
+            box-shadow: 0 0 8px theme('colors.primary');
+        }
+
+        .choice-btn:active .diamond {
+            background-color: theme('colors.surface');
+            box-shadow: none;
+        }
+    </style>
+</head>
+<body class="bg-background-dark text-[#ECE5D8] font-display min-h-screen overflow-hidden antialiased">
+<!-- Portrait Mode Overlay -->
+<div class="fixed inset-0 z-[100] bg-background-dark text-primary hidden portrait:flex flex-col items-center justify-center p-8 text-center">
+<span class="material-symbols-outlined text-6xl mb-6">screen_rotation</span>
+<h2 class="text-3xl font-bold mb-4">Please Rotate Your Device</h2>
+<p class="text-xl text-[#ECE5D8]">For the optimal immersive experience, please use landscape orientation.</p>
+</div>
+<!-- Underlying Context (Blurred) -->
+<div class="fixed inset-0 z-0 select-none hidden portrait:hidden landscape:block">
+<!-- Environmental Background Image -->
+<div class="absolute inset-0 bg-cover bg-center opacity-40" data-alt="A dark, moody ancient ruin lit by glowing arcane mechanisms, high fantasy setting, cinematic lighting, deep shadows, shimmering gold accents, mysterious and ancient atmosphere." style="background-image: url('https://lh3.googleusercontent.com/aida-public/AB6AXuDkTLdYS-cUF45-uMxMRQ1Cj3iRudfnvS0uloCKbeSDzTwApW8_KHsGhifZsIFCmNsiSbt3MCerW2hBIsKSAcLDiDP7_5mkA64GWNXpNSZ5YhCrK-s18aaVrkj6EipZ6Jk8Do-3H38pKMGQy9GvKym-Fg-daHF5nLF4QeH6RI6Bc2k7LPgOxHMOJVhdh4aDqZ8t4-aPbPQgIypzpoon-CC-afNjMxUHxRgmYfYh0DAHiaYxyPo52bXL46tfMH0eJ_113XFNfCCH_u4')"></div>
+<!-- Character Portrait Placeholder -->
+<div class="absolute bottom-48 md:bottom-64 left-4 md:left-10 w-[300px] md:w-[600px] h-[400px] md:h-[800px] bg-gradient-to-t from-surface/80 to-transparent flex items-end justify-center pointer-events-none opacity-50">
+<img class="object-contain h-full w-full mask-image-bottom-fade" data-alt="A detailed, imposing portrait of a high-fantasy character in ornate golden armor, cinematic rim lighting, deep shadows, looking thoughtfully into the distance, moody and elegant visual novel style." src="https://lh3.googleusercontent.com/aida-public/AB6AXuDy__574e9Q8-UsFaYhVjyYTVHj5suJYOafgQhIw_Iz4WNyBeOztsVMoQkXdUBrHbT9M1SJzSYyeu3iAwQki6xDg9SYNBBY28hhjzAf4AuwRgdGRXeUVoGvoAHnSwqJnznoD5pLTEYkMVH8517yXC640RqpSg-rvdzesfAIglTm1e0I8ws-fGgQX5Nexm5AnKiTbbf4rdaEHE_vjT-7ZzjTh22aLpLTK-3iE6jzzxo3xb8fRzCx7-N2K5VbyEaA_dZFcG52rD6QmG0"/>
+</div>
+<!-- Dialogue Box Placeholder -->
+<div class="absolute bottom-4 md:bottom-8 left-1/2 -translate-x-1/2 w-[95%] max-w-[1200px] h-[160px] md:h-[240px] bg-surface/85 backdrop-blur-md border-t border-primary/50 p-6 md:p-8 rounded-t-xl opacity-60">
+<div class="absolute -top-10 md:-top-12 left-0 bg-primary/90 text-surface px-4 md:px-6 py-1 md:py-2 rounded-t-md font-bold text-base md:text-lg">
+                The Architect
+            </div>
+<p class="text-lg md:text-xl leading-relaxed">
+                "The ancient mechanism hums to life. Do you insert the artifact or destroy it to prevent the leylines from collapsing?"
+            </p>
+</div>
+</div>
+<!-- Active Overlay Container -->
+<div class="fixed inset-0 z-10 bg-black/40 backdrop-blur-sm flex flex-col hidden portrait:hidden landscape:flex">
+<!-- Timer Bar -->
+<div class="w-full h-[2px] bg-surface/50">
+<div class="h-full bg-primary animate-timer-shrink origin-left"></div>
+</div>
+<!-- Centered Content -->
+<div class="flex-1 flex flex-col items-center justify-center p-4 relative z-20 overflow-y-auto">
+<!-- Context Hint (Optional visual aid for the blurred background) -->
+<div class="mb-6 md:mb-12 text-center text-primary animate-pulse-glow w-full max-w-2xl px-4 md:px-6 py-3 md:py-4 bg-surface/50 rounded-lg backdrop-blur-md border border-primary/20">
+<p class="text-base md:text-xl italic">"The ancient mechanism hums to life. Do you insert the artifact or destroy it to prevent the leylines from collapsing?"</p>
+</div>
+<!-- Choice Stack -->
+<div class="flex flex-col gap-3 md:gap-4 w-full max-w-[90%] md:max-w-[400px] lg:max-w-[600px]">
+<button class="choice-btn group flex items-center justify-between w-full h-12 md:h-16 px-4 md:px-6 bg-surface rounded text-primary font-semibold text-base md:text-xl tracking-wide">
+<span class="diamond opacity-80 group-hover:opacity-100"></span>
+<span class="truncate px-4">Insert the artifact into the pedestal</span>
+<span class="diamond opacity-80 group-hover:opacity-100"></span>
+</button>
+<button class="choice-btn group flex items-center justify-between w-full h-12 md:h-16 px-4 md:px-6 bg-surface rounded text-primary font-semibold text-base md:text-xl tracking-wide">
+<span class="diamond opacity-80 group-hover:opacity-100"></span>
+<span class="truncate px-4">Shatter the artifact with your weapon</span>
+<span class="diamond opacity-80 group-hover:opacity-100"></span>
+</button>
+<button class="choice-btn group flex items-center justify-between w-full h-12 md:h-16 px-4 md:px-6 bg-surface rounded text-primary font-semibold text-base md:text-xl tracking-wide">
+<span class="diamond opacity-80 group-hover:opacity-100"></span>
+<span class="truncate px-4">Wait and observe the mechanism</span>
+<span class="diamond opacity-80 group-hover:opacity-100"></span>
+</button>
+</div>
+</div>
+<!-- Decorative Corners (Optional) -->
+<div class="absolute top-4 left-4 diamond bg-primary/40 pointer-events-none"></div>
+<div class="absolute top-4 right-4 diamond bg-primary/40 pointer-events-none"></div>
+<div class="absolute bottom-4 left-4 diamond bg-primary/40 pointer-events-none"></div>
+<div class="absolute bottom-4 right-4 diamond bg-primary/40 pointer-events-none"></div>
+</div>
+<script>
+        // Simple script to handle button clicks for demonstration
+        document.querySelectorAll('.choice-btn').forEach(btn => {
+            btn.addEventListener('click', function() {
+                // Flash effect is handled partially by CSS :active
+                // This simulates the collapsing out animation logic
+                this.style.opacity = '0';
+                this.style.transform = 'scale(1.05)';
+                setTimeout(() => {
+                    // Logic to proceed to next scene would go here
+                    console.log('Choice selected:', this.innerText);
+                }, 300);
+            });
+        });
+    </script>
+</body></html>

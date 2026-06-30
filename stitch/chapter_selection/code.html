@@ -1,0 +1,107 @@
+﻿<!DOCTYPE html>
+<html class="dark" lang="en">
+<head>
+    <meta charset="utf-8"/>
+    <meta content="width=device-width, initial-scale=1.0" name="viewport"/>
+    <title>Teyvat Elegance - Chapter Selection</title>
+    <link href="https://fonts.googleapis.com/css2?family=Cinzel:wght@600;700&family=Lora:wght@400;500&family=Material+Symbols+Outlined:wght,FILL@100..700,0..1&display=swap" rel="stylesheet"/>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <script src="https://apis.google.com/js/platform.js" async defer></script>
+    <script>
+        tailwind.config = {
+            darkMode: 'class',
+            theme: {
+                extend: {
+                    colors: { primary: '#D3BC8E', surface: 'rgba(31, 37, 47, 0.85)', textLight: '#ECE5D8', textDark: '#2B333E', muted: '#8A95A5' },
+                    fontFamily: { display: ['Cinzel', 'serif'], body: ['Lora', 'serif'] }
+                }
+            }
+        };
+    </script>
+    <link rel="stylesheet" href="css/style.css"/>
+</head>
+<body class="bg-black text-textLight font-body min-h-screen">
+
+    <button id="edit-toggle" class="fixed top-4 right-4 z-50 edit-btn px-4 py-2 rounded-full font-display text-sm flex items-center gap-2">
+        <span class="material-symbols-outlined">edit</span><span>EDIT MODE</span>
+    </button>
+
+    <div id="bg" class="absolute inset-0 bg-cover" style="background-color: #1F252F;"></div>
+    <div class="absolute inset-0 bg-gradient-to-t from-black/60 to-transparent"></div>
+
+    <div class="relative z-10 min-h-screen flex flex-col">
+        <header class="px-10 pt-6 pb-4 backdrop-blur-md bg-surface/60 rounded-md mx-auto w-full max-w-[960px]">
+            <div class="flex items-center gap-4">
+                <div class="w-4 text-primary"><svg viewBox="0 0 48 48"><path d="M42.4379 44C42.4379 44 36.0744 33.9038 41.1692 24C46.8624 12.9336 42.2078 4 42.2078 4L7.01134 4C7.01134 4 11.6577 12.932 5.96912 23.9969C0.876273 33.9029 7.27094 44 7.27094 44L42.4379 44Z" fill="currentColor"/></svg></div>
+                <h1 class="text-xl font-display text-primary tracking-wider">Chapter Selection</h1>
+            </div>
+        </header>
+
+        <div class="px-10 py-4 backdrop-blur-md bg-surface/40 rounded-md mx-auto w-full max-w-[960px] mb-6">
+            <h2 id="title" class="text-primary text-3xl font-display tracking-wide">Chronicles</h2>
+            <p id="subtitle" class="text-textLight text-sm font-body">Select your next story beat</p>
+        </div>
+
+        <main class="relative z-10 flex-grow flex items-center justify-center px-12 py-12">
+            <div class="w-full max-w-7xl">
+                <div class="hidden lg:block absolute top-[90%] left-[5%] right-[5%] h-[2px] bg-muted overflow-hidden"><div class="h-full bg-primary w-2/3 shadow-[0_0_10px_#D3BC8E]"></div></div>
+                <div id="chapters-container" class="flex flex-row gap-12 overflow-x-auto pb-12 pt-8 px-4 snap-x snap-mandatory scroll-smooth items-stretch"></div>
+            </div>
+        </main>
+    </div>
+
+    <div id="edit-panel" class="fixed top-0 right-0 h-full w-96 edit-panel z-50 transform translate-x-full transition-transform overflow-y-auto">
+        <div class="p-6 space-y-6">
+            <div class="flex justify-between border-b border-primary/20 pb-4">
+                <h3 class="font-display text-xl text-primary">Edit Mode</h3>
+                <button id="close-edit" class="text-muted hover:text-primary"><span class="material-symbols-outlined">close</span></button>
+            </div>
+
+            <div class="space-y-2">
+                <label class="font-display text-sm text-primary">Page Title</label>
+                <input type="text" id="edit-title" class="edit-input w-full px-4 py-2 rounded" placeholder="Enter title"/>
+            </div>
+
+            <div class="space-y-2">
+                <label class="font-display text-sm text-primary">Subtitle</label>
+                <input type="text" id="edit-subtitle" class="edit-input w-full px-4 py-2 rounded" placeholder="Enter subtitle"/>
+            </div>
+
+            <div class="space-y-2">
+                <label class="font-display text-sm text-primary">Background Image</label>
+                <div class="flex gap-2">
+                    <input type="file" id="bg-upload" accept="image/*" class="hidden"/>
+                    <button onclick="document.getElementById('bg-upload').click()" class="edit-btn px-4 py-2 rounded">Upload</button>
+                    <button id="clear-bg" class="edit-btn px-4 py-2 rounded">Clear</button>
+                </div>
+                <img id="bg-thumb" class="max-w-[100px] max-h-[100px] rounded hidden mt-2"/>
+            </div>
+
+            <div class="pt-4 border-t border-primary/20">
+                <h4 class="font-display text-sm text-primary mb-4">Add New Chapter</h4>
+                <div class="space-y-3">
+                    <input type="text" id="new-chapter-num" class="edit-input w-full px-4 py-2 rounded" placeholder="Chapter number"/>
+                    <input type="text" id="new-chapter-title" class="edit-input w-full px-4 py-2 rounded" placeholder="Chapter title"/>
+                    <input type="text" id="new-chapter-desc" class="edit-input w-full px-4 py-2 rounded" placeholder="Chapter description"/>
+                    <button id="add-chapter" class="edit-btn w-full px-4 py-2 rounded font-display flex items-center justify-center gap-2">
+                        <span class="material-symbols-outlined">add</span>Add Chapter
+                    </button>
+                </div>
+            </div>
+
+            <div class="pt-4 border-t border-primary/20 space-y-3">
+                <button id="save-config" class="edit-btn w-full px-4 py-3 rounded font-display flex items-center justify-center gap-2">
+                    <span class="material-symbols-outlined">save</span>Save Config
+                </button>
+                <button id="load-config" class="edit-btn w-full px-4 py-3 rounded font-display flex items-center justify-center gap-2">
+                    <span class="material-symbols-outlined">folder_open</span>Load Config
+                </button>
+                <input type="file" id="config-upload" accept=".json" class="hidden"/>
+            </div>
+        </div>
+    </div>
+
+    <script src="js/auth.js"></script>
+    <script src="js/editor.js"></script>
+</body>
+</html>

@@ -1,0 +1,37 @@
+﻿.edit-panel {
+    background: rgba(31, 37, 47, 0.95);
+    backdrop-filter: blur(16px);
+    border: 1px solid rgba(211, 188, 142, 0.3);
+}
+.edit-input {
+    background: rgba(43, 51, 62, 0.8);
+    border: 1px solid rgba(211, 188, 142, 0.3);
+    color: #ECE5D8;
+    transition: all 0.3s ease;
+}
+.edit-input:focus {
+    border-color: #D3BC8E;
+    outline: none;
+    box-shadow: 0 0 0 2px rgba(211, 188, 142, 0.2);
+}
+.edit-btn {
+    background: rgba(211, 188, 142, 0.1);
+    border: 1px solid rgba(211, 188, 142, 0.5);
+    color: #D3BC8E;
+    transition: all 0.3s ease;
+}
+.edit-btn:hover {
+    background: rgba(211, 188, 142, 0.2);
+    border-color: #D3BC8E;
+}
+.image-preview {
+    max-width: 100px;
+    max-height: 100px;
+    object-fit: cover;
+    border: 2px solid rgba(211, 188, 142, 0.5);
+    border-radius: 4px;
+}
+.diamond {
+    fill: #D3BC8E;
+    filter: drop-shadow(0 0 4px rgba(211, 188, 142, 0.5));
+}

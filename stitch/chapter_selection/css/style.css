@@ -1,0 +1,40 @@
+﻿.edit-panel {
+    background: rgba(31, 37, 47, 0.95);
+    backdrop-filter: blur(16px);
+    border: 1px solid rgba(211, 188, 142, 0.3);
+}
+.edit-input {
+    background: rgba(43, 51, 62, 0.8);
+    border: 1px solid rgba(211, 188, 142, 0.3);
+    color: #ECE5D8;
+    transition: all 0.3s ease;
+}
+.edit-input:focus {
+    border-color: #D3BC8E;
+    outline: none;
+}
+.edit-btn {
+    background: rgba(211, 188, 142, 0.1);
+    border: 1px solid rgba(211, 188, 142, 0.5);
+    color: #D3BC8E;
+    transition: all 0.3s ease;
+}
+.edit-btn:hover {
+    background: rgba(211, 188, 142, 0.2);
+    border-color: #D3BC8E;
+}
+.chapter-card {
+    background: rgba(31, 37, 47, 0.85);
+    backdrop-filter: blur(12px);
+    border: 1px solid rgba(211, 188, 142, 0.4);
+    transition: transform 0.3s ease, box-shadow 0.3s ease, border-color 0.3s ease;
+}
+.chapter-card:hover {
+    transform: translateY(-8px);
+    border-color: #D3BC8E;
+    box-shadow: 0 10px 25px -5px rgba(211, 188, 142, 0.3);
+}
+.diamond {
+    clip-path: polygon(50% 0%, 100% 50%, 50% 100%, 0% 50%);
+    background: linear-gradient(135deg, #D3BC8E 0%, #C29A5B 100%);
+}
