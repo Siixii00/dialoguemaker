@@ -29,7 +29,9 @@ function hexToBytes(hex: string): Uint8Array {
 }
 
 async function sha1(message: Uint8Array): Promise<Uint8Array> {
-  const buffer = await crypto.subtle.digest("SHA-1", message);
+  const arrayBuffer = new ArrayBuffer(message.length);
+  new Uint8Array(arrayBuffer).set(message);
+  const buffer = await crypto.subtle.digest("SHA-1", arrayBuffer);
   return new Uint8Array(buffer);
 }
 
