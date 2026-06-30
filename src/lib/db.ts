@@ -58,6 +58,32 @@ export async function initDatabase() {
   `);
 
   await database.execute(`
+    CREATE TABLE IF NOT EXISTS dialogue_sequences (
+      id TEXT PRIMARY KEY,
+      chapter_item_id TEXT NOT NULL,
+      title TEXT NOT NULL,
+      description TEXT,
+      created_at INTEGER DEFAULT (strftime('%s', 'now')),
+      updated_at INTEGER DEFAULT (strftime('%s', 'now')),
+      FOREIGN KEY (chapter_item_id) REFERENCES chapter_items(id) ON DELETE CASCADE
+    )
+  `);
+
+  await database.execute(`
+    CREATE TABLE IF NOT EXISTS sequence_items (
+      id TEXT PRIMARY KEY,
+      sequence_id TEXT NOT NULL,
+      item_type TEXT NOT NULL,
+      content TEXT NOT NULL,
+      duration INTEGER DEFAULT 3000,
+      display_order INTEGER DEFAULT 0,
+      character_name TEXT,
+      created_at INTEGER DEFAULT (strftime('%s', 'now')),
+      FOREIGN KEY (sequence_id) REFERENCES dialogue_sequences(id) ON DELETE CASCADE
+    )
+  `);
+
+  await database.execute(`
     CREATE TABLE IF NOT EXISTS admin_config (
       id TEXT PRIMARY KEY DEFAULT 'default',
       admin_email TEXT NOT NULL,

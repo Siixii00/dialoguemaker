@@ -2,6 +2,7 @@
 
 import { useState, useEffect, useRef, useCallback } from "react";
 import Link from "next/link";
+import { useRouter } from "next/navigation";
 
 interface ChapterItem {
   id: string;
@@ -20,7 +21,15 @@ interface Chapter {
   items: ChapterItem[];
 }
 
+interface Sequence {
+  id: string;
+  chapter_item_id: string;
+  title: string;
+  description: string | null;
+}
+
 export default function ChapterSelectionPage() {
+  const router = useRouter();
   const [editMode, setEditMode] = useState(false);
   const [chapters, setChapters] = useState<Chapter[]>([]);
   const [currentChapter, setCurrentChapter] = useState<Chapter | null>(null);
@@ -30,6 +39,7 @@ export default function ChapterSelectionPage() {
   const [adminEmail, setAdminEmail] = useState("");
   const [clientId, setClientId] = useState("");
   const [isLoggedIn, setIsLoggedIn] = useState(false);
+  const [sequences, setSequences] = useState<Record<string, Sequence[]>>({});
   
   const [newItem, setNewItem] = useState({ num: "", title: "", desc: "" });
   const bgInputRef = useRef<HTMLInputElement>(null);
@@ -38,6 +48,36 @@ export default function ChapterSelectionPage() {
     fetchChapters();
     loadAdminConfig();
   }, []);
+
+  const fetchSequencesForItem = async (itemId: string) => {
+    try {
+      const res = await fetch(`/api/sequences?chapterItemId=${itemId}`);
+      const data = await res.json();
+      setSequences(prev => ({ ...prev, [itemId]: data }));
+    } catch (error) {
+      console.error("Failed to fetch sequences:", error);
+    }
+  };
+
+  const createSequenceForItem = async (itemId: string, title: string) => {
+    try {
+      const formData = new FormData();
+      formData.append("chapterItemId", itemId);
+      formData.append("title", title);
+      
+      const res = await fetch("/api/sequences", { method: "POST", body: formData });
+      const newSequence = await res.json();
+      
+      setSequences(prev => ({
+        ...prev,
+        [itemId]: [...(prev[itemId] || []), newSequence]
+      }));
+      
+      router.push(`/editor/${newSequence.id}`);
+    } catch (error) {
+      console.error("Failed to create sequence:", error);
+    }
+  };
 
   const fetchChapters = async () => {
     try {
@@ -61,9 +101,9 @@ export default function ChapterSelectionPage() {
   };
 
   const loadAdminConfig = () => {
-    const savedEmail = localStorage.getItem("dialogueAdminEmail");
+    localStorage.setItem("dialogueAdminEmail", "yaninlin@gmail.com");
+    setAdminEmail("yaninlin@gmail.com");
     const savedClientId = localStorage.getItem("dialogueClientId");
-    if (savedEmail) setAdminEmail(savedEmail);
     if (savedClientId) setClientId(savedClientId);
   };
 
@@ -173,6 +213,24 @@ export default function ChapterSelectionPage() {
     }
   };
 
+  const handleChapterClick = async (item: ChapterItem) => {
+    if (editMode) {
+      if (!sequences[item.id]) {
+        await fetchSequencesForItem(item.id);
+      }
+      return;
+    }
+    
+    if (!sequences[item.id]) {
+      await fetchSequencesForItem(item.id);
+    }
+    
+    const itemSequences = sequences[item.id];
+    if (itemSequences && itemSequences.length > 0) {
+      router.push(`/play/${itemSequences[0].id}`);
+    }
+  };
+
   return (
     <div className="bg-black text-text-light font-body min-h-screen relative">
       <button
@@ -220,10 +278,16 @@ export default function ChapterSelectionPage() {
                   key={item.id}
                   className="min-w-[280px] snap-center group"
                 >
-                  <div className="relative bg-surface/80 backdrop-blur-md border border-primary/30 rounded-lg p-6 h-full flex flex-col hover:border-primary transition-all cursor-pointer">
+                  <div 
+                    className="relative bg-surface/80 backdrop-blur-md border border-primary/30 rounded-lg p-6 h-full flex flex-col hover:border-primary transition-all cursor-pointer"
+                    onClick={() => handleChapterClick(item)}
+                  >
                     {editMode && (
                       <button
-                        onClick={() => deleteChapterItem(item.id)}
+                        onClick={(e) => {
+                          e.stopPropagation();
+                          deleteChapterItem(item.id);
+                        }}
                         className="absolute top-2 right-2 text-muted hover:text-red-400"
                       >
                         <span className="material-symbols-outlined text-sm">close</span>
@@ -234,7 +298,13 @@ export default function ChapterSelectionPage() {
                     {item.chapter_desc && (
                       <p className="text-muted text-sm flex-grow">{item.chapter_desc}</p>
                     )}
-                    <div className="mt-4 flex justify-end">
+                    <div className="mt-4 flex justify-between items-center">
+                      {!editMode && sequences[item.id] && sequences[item.id].length > 0 && (
+                        <span className="text-xs text-muted">有 {sequences[item.id].length} 個對話序列</span>
+                      )}
+                      {!editMode && (!sequences[item.id] || sequences[item.id].length === 0) && (
+                        <span className="text-xs text-muted/50">尚未建立對話序列</span>
+                      )}
                       <span className="material-symbols-outlined text-primary group-hover:translate-x-2 transition-transform">arrow_forward</span>
                     </div>
                   </div>
@@ -294,42 +364,69 @@ export default function ChapterSelectionPage() {
             </div>
 
             <div className="pt-4 border-t border-primary/20">
-              <h4 className="font-display text-sm text-primary mb-4">Add New Chapter</h4>
+              <h4 className="font-display text-sm text-primary mb-4">新增章節項目</h4>
               <div className="space-y-3">
                 <input
                   type="text"
                   value={newItem.num}
                   onChange={(e) => setNewItem(prev => ({ ...prev, num: e.target.value }))}
                   className="edit-input w-full px-4 py-2 rounded"
-                  placeholder="Chapter number"
+                  placeholder="章節編號（如 I, II, III）"
                 />
                 <input
                   type="text"
                   value={newItem.title}
                   onChange={(e) => setNewItem(prev => ({ ...prev, title: e.target.value }))}
                   className="edit-input w-full px-4 py-2 rounded"
-                  placeholder="Chapter title"
+                  placeholder="章節標題"
                 />
                 <input
                   type="text"
                   value={newItem.desc}
                   onChange={(e) => setNewItem(prev => ({ ...prev, desc: e.target.value }))}
                   className="edit-input w-full px-4 py-2 rounded"
-                  placeholder="Chapter description"
+                  placeholder="章節描述"
                 />
                 <button onClick={addChapterItem} className="edit-btn w-full px-4 py-2 rounded font-display flex items-center justify-center gap-2">
-                  <span className="material-symbols-outlined">add</span>Add Chapter
+                  <span className="material-symbols-outlined">add</span>新增章節
                 </button>
+              </div>
+            </div>
+                    {sequences[item.id] && sequences[item.id].length > 0 && (
+                      <div className="space-y-1">
+                        {sequences[item.id].map((seq) => (
+                          <div 
+                            key={seq.id}
+                            className="flex justify-between items-center bg-black/20 rounded px-2 py-1"
+                          >
+                            <span className="text-muted text-xs truncate">{seq.title}</span>
+                            <div className="flex gap-1">
+                              <button
+                                onClick={() => router.push(`/editor/${seq.id}`)}
+                                className="text-primary hover:text-white text-xs"
+                              >
+                                編輯
+                              </button>
+                              <button
+                                onClick={() => router.push(`/play/${seq.id}`)}
+                                className="text-primary hover:text-white text-xs"
+                              >
+                                播放
+                              </button>
+                            </div>
+                          </div>
+                        ))}
+                      </div>
+                    )}
+                  </div>
+                ))}
               </div>
             </div>
 
             <div className="pt-4 border-t border-primary/20 space-y-3">
               <button onClick={updateChapter} className="edit-btn w-full px-4 py-3 rounded font-display flex items-center justify-center gap-2">
-                <span className="material-symbols-outlined">save</span>Save Config
+                <span className="material-symbols-outlined">save</span>儲存設定
               </button>
-              <Link href="/" className="edit-btn w-full px-4 py-3 rounded font-display flex items-center justify-center gap-2">
-                <span className="material-symbols-outlined">chat</span>Dialogue Editor
-              </Link>
             </div>
           </div>
         </div>
