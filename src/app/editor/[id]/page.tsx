@@ -325,12 +325,16 @@ export default function EditorPage() {
       if (type === "background") {
         setPreviewState((prev) => ({ ...prev, background: data.url }));
         if (editingItem?.item_type === "background") {
-          setEditingItem((prev) => prev ? { ...prev, content: data.url } : null);
+          const updatedItem = { ...editingItem, content: data.url };
+          setEditingItem(updatedItem);
+          await autoSaveItem(updatedItem);
         }
       } else {
         setPreviewState((prev) => ({ ...prev, character: data.url }));
         if (editingItem?.item_type === "character") {
-          setEditingItem((prev) => prev ? { ...prev, content: data.url } : null);
+          const updatedItem = { ...editingItem, content: data.url };
+          setEditingItem(updatedItem);
+          await autoSaveItem(updatedItem);
         }
       }
     } catch (error) {
@@ -388,10 +392,52 @@ export default function EditorPage() {
         }),
       });
 
-      fetchSequence();
-      setEditingItem(null);
+      setSequence((prev) =>
+        prev
+          ? {
+              ...prev,
+              items: prev.items.map((item) =>
+                item.id === editingItem.id ? editingItem : item
+              ),
+            }
+          : null
+      );
+      updatePreview(
+        sequence?.items.map((item) =>
+          item.id === editingItem.id ? editingItem : item
+        ) || []
+      );
     } catch (error) {
       console.error("Error updating item:", error);
+    }
+  };
+
+  const autoSaveItem = async (updatedItem: SequenceItem) => {
+    try {
+      await fetch("/api/sequence-items", {
+        method: "PUT",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          id: updatedItem.id,
+          content: updatedItem.content,
+          duration: updatedItem.duration,
+          displayOrder: updatedItem.display_order,
+          characterName: updatedItem.character_name,
+        }),
+      });
+
+      setSequence((prev) =>
+        prev
+          ? {
+              ...prev,
+              items: prev.items.map((item) =>
+                item.id === updatedItem.id ? updatedItem : item
+              ),
+            }
+          : null
+      );
+    } catch (error) {
+      console.error("Error auto-saving item:", error);
     }
   };
 
@@ -678,7 +724,7 @@ export default function EditorPage() {
               <div className="space-y-4">
                 <div className="space-y-2">
                   <label className="font-display text-xs text-primary">
-                    顯示時間（毫秒）
+                   顯示時間（毫秒）
                   </label>
                   <input
                     type="number"
@@ -690,6 +736,7 @@ export default function EditorPage() {
                           : null
                       )
                     }
+                    onBlur={() => editingItem && autoSaveItem(editingItem)}
                     className="edit-input w-full px-4 py-2 rounded"
                     min={500}
                     step={500}
@@ -699,30 +746,45 @@ export default function EditorPage() {
                 {editingItem.item_type === "background" && (
                   <div className="space-y-2">
                     <label className="font-display text-xs text-primary">
-                      場景底圖
+                      場景底圖 URL
                     </label>
                     <input
-                      ref={bgInputRef}
-                      type="file"
-                      accept="image/*"
-                      className="hidden"
-                      onChange={(e) => handleImageUpload(e, "background")}
+                      type="text"
+                      value={editingItem.content || ""}
+                      onChange={(e) =>
+                        setEditingItem((prev) =>
+                          prev ? { ...prev, content: e.target.value } : null
+                        )
+                      }
+                      onBlur={() => editingItem && autoSaveItem(editingItem)}
+                      className="edit-input w-full px-4 py-2 rounded"
+                      placeholder="輸入圖片URL（支援 jpg, gif, png 等）"
                     />
-                    <div className="flex gap-2">
-                      <button
-                        onClick={() => bgInputRef.current?.click()}
-                        className="edit-btn px-4 py-2 rounded flex-1"
-                      >
-                        {loading ? "上傳中..." : "上傳圖片"}
-                      </button>
-                    </div>
                     {editingItem.content && (
                       <img
                         src={editingItem.content}
                         className="w-full h-32 object-cover rounded mt-2"
                         alt="Background preview"
+                        onError={(e) => {
+                          e.currentTarget.style.opacity = "0.5";
+                        }}
                       />
                     )}
+                    <div className="flex gap-2 mt-2">
+                      <input
+                        ref={bgInputRef}
+                        type="file"
+                        accept="image/*"
+                        className="hidden"
+                        onChange={(e) => handleImageUpload(e, "background")}
+                      />
+                      <button
+                        onClick={() => bgInputRef.current?.click()}
+                        className="edit-btn px-4 py-2 rounded flex-1 text-xs"
+                      >
+                        {loading ? "上傳中..." : "或上傳本機檔案"}
+                      </button>
+                    </div>
                   </div>
                 )}
 
@@ -742,35 +804,51 @@ export default function EditorPage() {
                               : null
                           )
                         }
+                        onBlur={() => editingItem && autoSaveItem(editingItem)}
                         className="edit-input w-full px-4 py-2 rounded"
                       />
                     </div>
                     <div className="space-y-2">
                       <label className="font-display text-xs text-primary">
-                        人物立繪
+                        人物立繪 URL
                       </label>
                       <input
-                        ref={charInputRef}
-                        type="file"
-                        accept="image/*"
-                        className="hidden"
-                        onChange={(e) => handleImageUpload(e, "character")}
+                        type="text"
+                        value={editingItem.content || ""}
+                        onChange={(e) =>
+                          setEditingItem((prev) =>
+                            prev ? { ...prev, content: e.target.value } : null
+                          )
+                        }
+                        onBlur={() => editingItem && autoSaveItem(editingItem)}
+                        className="edit-input w-full px-4 py-2 rounded"
+                        placeholder="輸入圖片URL（支援 jpg, gif, png 等）"
                       />
-                      <div className="flex gap-2">
-                        <button
-                          onClick={() => charInputRef.current?.click()}
-                          className="edit-btn px-4 py-2 rounded flex-1"
-                        >
-                          {loading ? "上傳中..." : "上傳圖片"}
-                        </button>
-                      </div>
                       {editingItem.content && (
                         <img
                           src={editingItem.content}
                           className="w-full h-32 object-cover rounded mt-2"
                           alt="Character preview"
+                          onError={(e) => {
+                            e.currentTarget.style.opacity = "0.5";
+                          }}
                         />
                       )}
+                      <div className="flex gap-2 mt-2">
+                        <input
+                          ref={charInputRef}
+                          type="file"
+                          accept="image/*"
+                          className="hidden"
+                          onChange={(e) => handleImageUpload(e, "character")}
+                        />
+                        <button
+                          onClick={() => charInputRef.current?.click()}
+                          className="edit-btn px-4 py-2 rounded flex-1 text-xs"
+                        >
+                          {loading ? "上傳中..." : "或上傳本機檔案"}
+                        </button>
+                      </div>
                     </div>
                   </>
                 )}
@@ -787,17 +865,21 @@ export default function EditorPage() {
                           prev ? { ...prev, content: e.target.value } : null
                         )
                       }
+                      onBlur={() => editingItem && autoSaveItem(editingItem)}
                       className="edit-input w-full px-4 py-3 rounded h-32 resize-none"
                     />
                   </div>
                 )}
 
                 <button
-                  onClick={updateItem}
+                  onClick={() => {
+                    updateItem();
+                    setEditingItem(null);
+                  }}
                   className="edit-btn w-full px-4 py-3 rounded font-display flex items-center justify-center gap-2"
                 >
-                  <span className="material-symbols-outlined">save</span>
-                  保存修改
+                  <span className="material-symbols-outlined">check</span>
+                  完成
                 </button>
               </div>
             </div>
