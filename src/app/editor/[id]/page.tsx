@@ -110,13 +110,13 @@ export default function EditorPage() {
       const newItemData: any = {
         sequenceId: sequence.id,
         itemType: type,
-        content: type === "dialogue" ? "New dialogue text..." : "",
+        content: type === "dialogue" ? "新對話文字..." : "",
         duration: 3000,
         displayOrder: sequence.items.length,
       };
 
       if (type === "character") {
-        newItemData.characterName = "Character";
+        newItemData.characterName = "角色名稱";
       }
 
       const res = await fetch("/api/sequence-items", {
@@ -250,7 +250,7 @@ export default function EditorPage() {
   if (!sequence) {
     return (
       <div className="bg-black text-text-light font-body h-screen flex items-center justify-center">
-        <p className="text-muted">Loading...</p>
+        <p className="text-muted">載入中...</p>
       </div>
     );
   }

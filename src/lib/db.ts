@@ -88,10 +88,22 @@ export async function initDatabase() {
       id TEXT PRIMARY KEY DEFAULT 'default',
       admin_email TEXT NOT NULL,
       google_client_id TEXT NOT NULL,
-      require_2fa INTEGER DEFAULT 1,
+      two_factor_secret TEXT,
+      two_factor_enabled INTEGER DEFAULT 0,
       created_at INTEGER DEFAULT (strftime('%s', 'now'))
     )
   `);
+
+  const existingConfig = await database.execute({
+    sql: "SELECT * FROM admin_config WHERE id = 'default'",
+  });
+
+  if (existingConfig.rows.length === 0) {
+    await database.execute({
+      sql: `INSERT INTO admin_config (id, admin_email, google_client_id) VALUES ('default', ?, ?)`,
+      args: ["yaninlin@gmail.com", "807013160344-ircr1f9gmb9gv7617ilc7asfecv737d5.apps.googleusercontent.com"],
+    });
+  }
 }
 
 export const db = {

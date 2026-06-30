@@ -139,7 +139,7 @@ export default function PlaySequencePage() {
   if (!sequence) {
     return (
       <div className="bg-black text-text-light font-body h-screen flex items-center justify-center">
-        <p className="text-muted">Loading...</p>
+        <p className="text-muted">載入中...</p>
       </div>
     );
   }
@@ -180,7 +180,7 @@ export default function PlaySequencePage() {
             className="text-muted hover:text-primary flex items-center gap-2 bg-black/40 backdrop-blur-sm rounded-full px-4 py-2 border border-white/10"
           >
             <span className="material-symbols-outlined">arrow_back</span>
-            <span className="font-display text-sm uppercase">Back</span>
+            <span className="font-display text-sm uppercase">返回</span>
           </button>
           <div className="flex gap-4">
             <button
@@ -188,14 +188,14 @@ export default function PlaySequencePage() {
               className="text-muted hover:text-primary flex items-center gap-2 bg-black/40 backdrop-blur-sm rounded-full px-4 py-2 border border-white/10"
             >
               <span className="material-symbols-outlined">{isPlaying ? "pause" : "play_circle"}</span>
-              <span className="font-display text-sm uppercase">{isPlaying ? "Pause" : "Play"}</span>
+              <span className="font-display text-sm uppercase">{isPlaying ? "暫停" : "播放"}</span>
             </button>
             <button
               onClick={skipToEnd}
               className="text-muted hover:text-primary flex items-center gap-2 bg-black/40 backdrop-blur-sm rounded-full px-4 py-2 border border-white/10"
             >
               <span className="material-symbols-outlined">fast_forward</span>
-              <span className="font-display text-sm uppercase">Skip</span>
+              <span className="font-display text-sm uppercase">跳過</span>
             </button>
           </div>
         </div>
