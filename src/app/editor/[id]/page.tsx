@@ -804,26 +804,6 @@ export default function EditorPage() {
           )}
         </div>
       </div>
-
-      {activeDragType && (
-        <div
-          className="fixed inset-0 z-[100] bg-primary/10 backdrop-blur-sm flex items-center justify-center"
-          onDragOver={(e) => e.preventDefault()}
-          onDrop={() => {
-            addItem(activeDragType);
-            setActiveDragType(null);
-          }}
-        >
-          <div className="text-center">
-            <span className="material-symbols-outlined text-primary text-6xl mb-4">
-              add_circle
-            </span>
-            <p className="text-primary font-display text-lg">
-              放開以新增元素
-            </p>
-          </div>
-        </div>
-      )}
     </div>
   );
 }
