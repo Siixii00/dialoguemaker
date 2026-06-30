@@ -51,8 +51,20 @@ export default function ChapterSelectionPage() {
   useEffect(() => {
     fetchChapters();
     fetchAdminConfig();
+    checkSession();
     checkOAuthCallback();
   }, []);
+
+  const checkSession = () => {
+    const session = sessionStorage.getItem("admin_session");
+    if (session) {
+      const sessionData = JSON.parse(session);
+      if (sessionData.authenticated && sessionData.email) {
+        setGoogleUserEmail(sessionData.email);
+        setEditMode(true);
+      }
+    }
+  };
 
   const checkOAuthCallback = async () => {
     const urlParams = new URLSearchParams(window.location.search);
@@ -167,10 +179,24 @@ export default function ChapterSelectionPage() {
 
   const toggleEditMode = () => {
     if (!editMode) {
+      const session = sessionStorage.getItem("admin_session");
+      if (session) {
+        const sessionData = JSON.parse(session);
+        if (sessionData.authenticated) {
+          setEditMode(true);
+          return;
+        }
+      }
       setShowLoginModal(true);
     } else {
       setEditMode(false);
     }
+  };
+
+  const handleLogout = () => {
+    sessionStorage.removeItem("admin_session");
+    setEditMode(false);
+    setGoogleUserEmail(null);
   };
 
   const handleGoogleLogin = () => {
@@ -211,6 +237,11 @@ export default function ChapterSelectionPage() {
       if (!res.ok) {
         setAuthError(data.error || "驗證失敗");
       } else {
+        sessionStorage.setItem("admin_session", JSON.stringify({
+          authenticated: true,
+          email: googleUserEmail || adminConfig?.adminEmail,
+          timestamp: Date.now()
+        }));
         setShow2FAVerify(false);
         setShow2FASetup(false);
         setEditMode(true);
