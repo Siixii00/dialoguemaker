@@ -61,6 +61,8 @@ export default function ChapterSelectionPage() {
     const authEmail = urlParams.get("email");
     const require2FA = urlParams.get("require_2fa");
 
+    console.log("OAuth callback check:", { authSuccess, authError, authEmail, require2FA });
+
     if (authError) {
       setAuthError(`登入失敗: ${authError}`);
       setShowLoginModal(true);
@@ -75,19 +77,27 @@ export default function ChapterSelectionPage() {
       if (require2FA === "true") {
         setShow2FAVerify(true);
       } else {
-        const res = await fetch("/api/auth/setup-2fa", {
-          method: "POST",
-          headers: { "Content-Type": "application/json" },
-          body: JSON.stringify({ email: authEmail }),
-        });
-        const data = await res.json();
-        if (res.ok) {
-          setQrCodeUrl(data.qrCodeUrl);
-          setShow2FASetup(true);
-        } else if (data.error === "2FA 已設定，請使用驗證碼登入") {
-          setShow2FAVerify(true);
-        } else {
-          setAuthError(data.error || "設定 2FA 失敗");
+        try {
+          const res = await fetch("/api/auth/setup-2fa", {
+            method: "POST",
+            headers: { "Content-Type": "application/json" },
+            body: JSON.stringify({ email: authEmail }),
+          });
+          const data = await res.json();
+          console.log("2FA setup response:", data);
+          
+          if (res.ok) {
+            setQrCodeUrl(data.qrCodeUrl);
+            setShow2FASetup(true);
+          } else if (data.error === "2FA 已設定，請使用驗證碼登入") {
+            setShow2FAVerify(true);
+          } else {
+            setAuthError(data.error || "設定 2FA 失敗");
+            setShowLoginModal(true);
+          }
+        } catch (err) {
+          console.error("2FA setup error:", err);
+          setAuthError("設定 2FA 時發生錯誤");
           setShowLoginModal(true);
         }
       }

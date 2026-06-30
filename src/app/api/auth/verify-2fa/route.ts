@@ -3,162 +3,78 @@ import { db, initDatabase } from "@/lib/db";
 
 const DEFAULT_ADMIN_EMAIL = "yaninlin@gmail.com";
 
-function verifyTOTP(secret: string, code: string): boolean {
+function base32ToHex(base32: string): string {
   const chars = "ABCDEFGHIJKLMNOPQRSTUVWXYZ234567";
-  let key = "";
-  for (const c of secret) {
-    const val = chars.indexOf(c.toUpperCase());
+  let bits = "";
+  for (const c of base32.toUpperCase()) {
+    const val = chars.indexOf(c);
     if (val === -1) continue;
-    key += val.toString(2).padStart(5, "0");
+    bits += val.toString(2).padStart(5, "0");
   }
+  
+  let hex = "";
+  for (let i = 0; i < bits.length - 3; i += 4) {
+    const chunk = bits.slice(i, i + 4);
+    hex += parseInt(chunk, 2).toString(16);
+  }
+  return hex;
+}
 
-  const keyBytes = [];
-  for (let i = 0; i < key.length; i += 8) {
-    keyBytes.push(parseInt(key.slice(i, i + 8), 2));
+function hexToBytes(hex: string): Uint8Array {
+  const bytes = new Uint8Array(hex.length / 2);
+  for (let i = 0; i < hex.length; i += 2) {
+    bytes[i / 2] = parseInt(hex.slice(i, i + 2), 16);
   }
+  return bytes;
+}
+
+async function sha1(message: Uint8Array): Promise<Uint8Array> {
+  const buffer = await crypto.subtle.digest("SHA-1", message);
+  return new Uint8Array(buffer);
+}
+
+function truncate(hmac: Uint8Array): number {
+  const offset = hmac[hmac.length - 1] & 0x0f;
+  return (
+    ((hmac[offset] & 0x7f) << 24) |
+    ((hmac[offset + 1] & 0xff) << 16) |
+    ((hmac[offset + 2] & 0xff) << 8) |
+    (hmac[offset + 3] & 0xff)
+  ) % 1000000;
+}
+
+async function verifyTOTP(secret: string, code: string): Promise<boolean> {
+  const keyHex = base32ToHex(secret);
+  const keyBytes = hexToBytes(keyHex);
+  
+  const cryptoKey = await crypto.subtle.importKey(
+    "raw",
+    keyBytes,
+    { name: "HMAC", hash: "SHA-1" },
+    false,
+    ["sign"]
+  );
 
   const epoch = Math.floor(Date.now() / 1000);
   const timeStep = Math.floor(epoch / 30);
 
   for (let offset = -1; offset <= 1; offset++) {
     const currentStep = timeStep + offset;
-    const timeBytes = new ArrayBuffer(8);
-    const timeView = new DataView(timeBytes);
+    const timeBuffer = new ArrayBuffer(8);
+    const timeView = new DataView(timeBuffer);
     timeView.setUint32(4, currentStep, false);
-
-    const hmac = computeHMAC(new Uint8Array(timeBytes), keyBytes);
-    const offsetIndex = hmac[hmac.length - 1] & 0x0f;
-    const binaryCode =
-      ((hmac[offsetIndex] & 0x7f) << 24) |
-      ((hmac[offsetIndex + 1] & 0xff) << 16) |
-      ((hmac[offsetIndex + 2] & 0xff) << 8) |
-      (hmac[offsetIndex + 3] & 0xff);
-
-    const generatedCode = (binaryCode % 1000000).toString().padStart(6, "0");
-
+    
+    const signature = await crypto.subtle.sign("HMAC", cryptoKey, timeBuffer);
+    const hmac = new Uint8Array(signature);
+    
+    const generatedCode = truncate(hmac).toString().padStart(6, "0");
+    
     if (generatedCode === code) {
       return true;
     }
   }
 
   return false;
-}
-
-function computeHMAC(message: Uint8Array, key: number[]): number[] {
-  const blockSize = 64;
-  const outputSize = 20;
-
-  let paddedKey = key.slice();
-  if (paddedKey.length > blockSize) {
-    paddedKey = sha1(paddedKey);
-  }
-  while (paddedKey.length < blockSize) {
-    paddedKey.push(0);
-  }
-
-  const oKeyPad = paddedKey.map((b) => b ^ 0x5c);
-  const iKeyPad = paddedKey.map((b) => b ^ 0x36);
-
-  const innerHash = sha1([...iKeyPad, ...Array.from(message)]);
-  const outerHash = sha1([...oKeyPad, ...innerHash]);
-
-  return outerHash;
-}
-
-function sha1(data: number[]): number[] {
-  let h0 = 0x67452301;
-  let h1 = 0xefcdab89;
-  let h2 = 0x98badcfe;
-  let h3 = 0x10325476;
-  let h4 = 0xc3d2e1f0;
-
-  const originalLength = data.length;
-  const paddedLength = Math.ceil((originalLength + 9) / 64) * 64;
-  const padded = [...data, 0x80];
-  while (padded.length < paddedLength - 8) {
-    padded.push(0);
-  }
-  const lengthBits = originalLength * 8;
-  padded.push(0, 0, 0, 0);
-  padded.push((lengthBits >> 24) & 0xff);
-  padded.push((lengthBits >> 16) & 0xff);
-  padded.push((lengthBits >> 8) & 0xff);
-  padded.push(lengthBits & 0xff);
-
-  for (let i = 0; i < padded.length; i += 64) {
-    const chunk = padded.slice(i, i + 64);
-    const w = chunk.slice();
-
-    for (let j = 16; j < 80; j++) {
-      const val = w[j - 3] ^ w[j - 8] ^ w[j - 14] ^ w[j - 16];
-      w.push(rol(val, 1));
-    }
-
-    let a = h0;
-    let b = h1;
-    let c = h2;
-    let d = h3;
-    let e = h4;
-
-    for (let j = 0; j < 80; j++) {
-      let f: number;
-      let k: number;
-
-      if (j < 20) {
-        f = (b & c) | (~b & d);
-        k = 0x5a827999;
-      } else if (j < 40) {
-        f = b ^ c ^ d;
-        k = 0x6ed9eba1;
-      } else if (j < 60) {
-        f = (b & c) | (b & d) | (c & d);
-        k = 0x8f1bbcdc;
-      } else {
-        f = b ^ c ^ d;
-        k = 0xca62c1d6;
-      }
-
-      const temp = (rol(a, 5) + f + e + k + w[j]) & 0xffffffff;
-      e = d;
-      d = c;
-      c = rol(b, 30);
-      b = a;
-      a = temp;
-    }
-
-    h0 = (h0 + a) & 0xffffffff;
-    h1 = (h1 + b) & 0xffffffff;
-    h2 = (h2 + c) & 0xffffffff;
-    h3 = (h3 + d) & 0xffffffff;
-    h4 = (h4 + e) & 0xffffffff;
-  }
-
-  return [
-    (h0 >> 24) & 0xff,
-    (h0 >> 16) & 0xff,
-    (h0 >> 8) & 0xff,
-    h0 & 0xff,
-    (h1 >> 24) & 0xff,
-    (h1 >> 16) & 0xff,
-    (h1 >> 8) & 0xff,
-    h1 & 0xff,
-    (h2 >> 24) & 0xff,
-    (h2 >> 16) & 0xff,
-    (h2 >> 8) & 0xff,
-    h2 & 0xff,
-    (h3 >> 24) & 0xff,
-    (h3 >> 16) & 0xff,
-    (h3 >> 8) & 0xff,
-    h3 & 0xff,
-    (h4 >> 24) & 0xff,
-    (h4 >> 16) & 0xff,
-    (h4 >> 8) & 0xff,
-    h4 & 0xff,
-  ];
-}
-
-function rol(value: number, bits: number): number {
-  return ((value << bits) | (value >>> (32 - bits))) & 0xffffffff;
 }
 
 export async function POST(request: NextRequest) {
@@ -198,7 +114,7 @@ export async function POST(request: NextRequest) {
       return NextResponse.json({ error: "尚未設定 2FA" }, { status: 400 });
     }
 
-    const isValid = verifyTOTP(secret as string, code);
+    const isValid = await verifyTOTP(secret as string, code);
 
     if (!isValid) {
       return NextResponse.json({ error: "驗證碼錯誤" }, { status: 401 });

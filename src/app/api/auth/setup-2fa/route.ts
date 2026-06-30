@@ -28,7 +28,7 @@ export async function POST(request: NextRequest) {
     await initDatabase();
 
     let adminEmail = DEFAULT_ADMIN_EMAIL;
-    let existingSecret = null;
+    let existingSecret: string | null = null;
     let twoFactorEnabled = false;
 
     try {
@@ -37,8 +37,8 @@ export async function POST(request: NextRequest) {
       });
 
       if (configResult.rows.length > 0) {
-        adminEmail = configResult.rows[0].admin_email as string || DEFAULT_ADMIN_EMAIL;
-        existingSecret = configResult.rows[0].two_factor_secret;
+        adminEmail = (configResult.rows[0].admin_email as string) || DEFAULT_ADMIN_EMAIL;
+        existingSecret = configResult.rows[0].two_factor_secret as string | null;
         twoFactorEnabled = configResult.rows[0].two_factor_enabled === 1;
       }
     } catch (dbError) {
@@ -54,7 +54,7 @@ export async function POST(request: NextRequest) {
     }
 
     const secret = existingSecret || generateSecret();
-    const otpauthUrl = generateQRCodeUrl(email, secret);
+    const otpauthUrl = generateQRCodeUrl(email, secret as string);
 
     try {
       await db.execute({
