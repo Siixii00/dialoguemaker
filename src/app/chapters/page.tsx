@@ -3,6 +3,25 @@
 import { useState, useEffect, useRef } from "react";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
+import {
+  DndContext,
+  DragOverlay,
+  closestCenter,
+  KeyboardSensor,
+  PointerSensor,
+  useSensor,
+  useSensors,
+  DragEndEvent,
+  DragStartEvent,
+} from "@dnd-kit/core";
+import {
+  arrayMove,
+  SortableContext,
+  sortableKeyboardCoordinates,
+  useSortable,
+  horizontalListSortingStrategy,
+} from "@dnd-kit/sortable";
+import { CSS } from "@dnd-kit/utilities";
 
 interface ChapterItem {
   id: string;
@@ -11,6 +30,10 @@ interface ChapterItem {
   chapter_title: string;
   chapter_desc: string | null;
   order_index: number;
+  position_x: number;
+  position_y: number;
+  card_width: number;
+  card_height: number;
 }
 
 interface Chapter {
@@ -26,6 +49,270 @@ interface Sequence {
   chapter_item_id: string;
   title: string;
   description: string | null;
+}
+
+function ResizableChapterCard({
+  item,
+  index,
+  editMode,
+  sequences,
+  onClick,
+  onDelete,
+  onEdit,
+  onPositionChange,
+  onSizeChange,
+}: {
+  item: ChapterItem;
+  index: number;
+  editMode: boolean;
+  sequences: Sequence[];
+  onClick: () => void;
+  onDelete: () => void;
+  onEdit: () => void;
+  onPositionChange: (x: number, y: number) => void;
+  onSizeChange: (width: number, height: number) => void;
+}) {
+  const cardRef = useRef<HTMLDivElement>(null);
+  const [isDragging, setIsDragging] = useState(false);
+  const [isResizing, setIsResizing] = useState(false);
+  const [dragStart, setDragStart] = useState({ x: 0, y: 0 });
+  const [resizeStart, setResizeStart] = useState({ width: 0, height: 0, x: 0, y: 0 });
+
+  const handleMouseDown = (e: React.MouseEvent) => {
+    if (!editMode) return;
+    e.preventDefault();
+    setIsDragging(true);
+    setDragStart({ x: e.clientX - item.position_x, y: e.clientY - item.position_y });
+  };
+
+  const handleMouseMove = (e: MouseEvent) => {
+    if (isDragging) {
+      const newX = e.clientX - dragStart.x;
+      const newY = e.clientY - dragStart.y;
+      onPositionChange(Math.max(0, newX), Math.max(0, newY));
+    }
+    if (isResizing) {
+      const newWidth = resizeStart.width + (e.clientX - resizeStart.x);
+      const newHeight = resizeStart.height + (e.clientY - resizeStart.y);
+      onSizeChange(Math.max(200, newWidth), Math.max(150, newHeight));
+    }
+  };
+
+  const handleMouseUp = () => {
+    setIsDragging(false);
+    setIsResizing(false);
+  };
+
+  useEffect(() => {
+    if (isDragging || isResizing) {
+      window.addEventListener("mousemove", handleMouseMove);
+      window.addEventListener("mouseup", handleMouseUp);
+      return () => {
+        window.removeEventListener("mousemove", handleMouseMove);
+        window.removeEventListener("mouseup", handleMouseUp);
+      };
+    }
+  }, [isDragging, isResizing, dragStart, resizeStart]);
+
+  const handleResizeMouseDown = (e: React.MouseEvent) => {
+    if (!editMode) return;
+    e.preventDefault();
+    e.stopPropagation();
+    setIsResizing(true);
+    setResizeStart({
+      width: item.card_width,
+      height: item.card_height,
+      x: e.clientX,
+      y: e.clientY,
+    });
+  };
+
+  return (
+    <div
+      ref={cardRef}
+      className={`absolute ${isDragging || isResizing ? "z-20" : "z-10"}`}
+      style={{
+        left: item.position_x,
+        top: item.position_y,
+        width: item.card_width,
+        minHeight: item.card_height,
+      }}
+    >
+      <div
+        className={`relative bg-surface/80 backdrop-blur-md border border-primary/30 rounded-lg p-6 h-full flex flex-col hover:border-primary transition-all ${
+          editMode ? "cursor-move" : "cursor-pointer"
+        }`}
+        onMouseDown={handleMouseDown}
+      >
+        {editMode && (
+          <>
+            <button
+              onMouseDown={(e) => e.stopPropagation()}
+              onClick={(e) => {
+                e.stopPropagation();
+                onDelete();
+              }}
+              className="absolute top-2 right-2 text-muted hover:text-red-400 z-30"
+            >
+              <span className="material-symbols-outlined text-sm">close</span>
+            </button>
+            <button
+              onMouseDown={(e) => e.stopPropagation()}
+              onClick={(e) => {
+                e.stopPropagation();
+                onEdit();
+              }}
+              className="absolute bottom-2 right-2 text-muted hover:text-primary z-30"
+            >
+              <span className="material-symbols-outlined text-sm">edit</span>
+            </button>
+            <div
+              onMouseDown={handleResizeMouseDown}
+              className="absolute bottom-0 right-0 w-4 h-4 cursor-se-resize z-30"
+            >
+              <svg viewBox="0 0 24 24" className="w-full h-full text-primary opacity-50">
+                <path d="M22 22H20V20H22V22ZM22 18H20V16H22V18ZM18 22H16V20H18V22ZM22 14H20V12H22V14ZM14 22H12V20H14V22Z" fill="currentColor" />
+              </svg>
+            </div>
+          </>
+        )}
+        <div onClick={editMode ? undefined : onClick}>
+          <span className="text-primary text-5xl font-display mb-2">
+            {item.chapter_num || index + 1}
+          </span>
+          <h3 className="text-primary font-display text-xl mb-2">
+            {item.chapter_title}
+          </h3>
+          {item.chapter_desc && (
+            <p className="text-muted text-sm flex-grow">{item.chapter_desc}</p>
+          )}
+          <div className="mt-4 flex justify-between items-center">
+            {sequences && sequences.length > 0 ? (
+              <span className="text-xs text-muted">
+                有 {sequences.length} 個對話序列
+              </span>
+            ) : (
+              <span className="text-xs text-muted/50">尚未建立對話序列</span>
+            )}
+            {!editMode && (
+              <span className="material-symbols-outlined text-primary group-hover:translate-x-2 transition-transform">
+                arrow_forward
+              </span>
+            )}
+          </div>
+        </div>
+      </div>
+    </div>
+  );
+}
+
+function SortableChapterCard({
+  item,
+  index,
+  editMode,
+  sequences,
+  onClick,
+  onDelete,
+  onEdit,
+}: {
+  item: ChapterItem;
+  index: number;
+  editMode: boolean;
+  sequences: Sequence[];
+  onClick: () => void;
+  onDelete: () => void;
+  onEdit: () => void;
+}) {
+  const {
+    attributes,
+    listeners,
+    setNodeRef,
+    transform,
+    transition,
+    isDragging,
+  } = useSortable({ id: item.id });
+
+  const style = {
+    transform: CSS.Transform.toString(transform),
+    transition,
+    opacity: isDragging ? 0.5 : 1,
+  };
+
+  return (
+    <div
+      ref={setNodeRef}
+      style={style}
+      className={`min-w-[280px] snap-center group ${isDragging ? "z-10" : ""}`}
+    >
+      <div
+        className={`relative bg-surface/80 backdrop-blur-md border border-primary/30 rounded-lg p-6 h-full flex flex-col hover:border-primary transition-all`}
+      >
+        {editMode && (
+          <>
+            <div
+              {...attributes}
+              {...listeners}
+              className="absolute top-2 left-2 text-muted hover:text-primary cursor-grab active:cursor-grabbing"
+            >
+              <span className="material-symbols-outlined text-sm">drag_indicator</span>
+            </div>
+            <button
+              onClick={(e) => {
+                e.stopPropagation();
+                onDelete();
+              }}
+              className="absolute top-2 right-2 text-muted hover:text-red-400"
+            >
+              <span className="material-symbols-outlined text-sm">close</span>
+            </button>
+            <button
+              onClick={(e) => {
+                e.stopPropagation();
+                onEdit();
+              }}
+              className="absolute bottom-2 right-2 text-muted hover:text-primary"
+            >
+              <span className="material-symbols-outlined text-sm">edit</span>
+            </button>
+          </>
+        )}
+        <div onClick={editMode ? undefined : onClick} className="cursor-pointer">
+          <span className="text-primary text-5xl font-display mb-2">
+            {item.chapter_num || index + 1}
+          </span>
+          <h3 className="text-primary font-display text-xl mb-2">
+            {item.chapter_title}
+          </h3>
+          {item.chapter_desc && (
+            <p className="text-muted text-sm flex-grow">{item.chapter_desc}</p>
+          )}
+          <div className="mt-4 flex justify-between items-center">
+            {!editMode && sequences && sequences.length > 0 && (
+              <span className="text-xs text-muted">
+                有 {sequences.length} 個對話序列
+              </span>
+            )}
+            {!editMode && (!sequences || sequences.length === 0) && (
+              <span className="text-xs text-muted/50">尚未建立對話序列</span>
+            )}
+            {!editMode && (
+              <span className="material-symbols-outlined text-primary group-hover:translate-x-2 transition-transform">
+                arrow_forward
+              </span>
+            )}
+            {editMode && sequences && sequences.length > 0 && (
+              <span className="text-xs text-muted">
+                有 {sequences.length} 個對話序列
+              </span>
+            )}
+            {editMode && (!sequences || sequences.length === 0) && (
+              <span className="text-xs text-muted/50">尚未建立對話序列</span>
+            )}
+          </div>
+        </div>
+      </div>
+    </div>
+  );
 }
 
 export default function ChapterSelectionPage() {
@@ -47,6 +334,14 @@ export default function ChapterSelectionPage() {
   
   const [newItem, setNewItem] = useState({ num: "", title: "", desc: "" });
   const bgInputRef = useRef<HTMLInputElement>(null);
+  const [activeDragId, setActiveDragId] = useState<string | null>(null);
+
+  const sensors = useSensors(
+    useSensor(PointerSensor),
+    useSensor(KeyboardSensor, {
+      coordinateGetter: sortableKeyboardCoordinates,
+    })
+  );
 
   useEffect(() => {
     fetchChapters();
@@ -349,6 +644,64 @@ export default function ChapterSelectionPage() {
     }
   };
 
+  const handleEditChapterItem = async (item: ChapterItem) => {
+    if (!sequences[item.id]) {
+      await fetchSequencesForItem(item.id);
+    }
+    
+    const itemSequences = sequences[item.id];
+    if (itemSequences && itemSequences.length > 0) {
+      router.push(`/editor/${itemSequences[0].id}`);
+    } else {
+      createSequenceForItem(item.id, `${item.chapter_title} - 對話序列`);
+    }
+  };
+
+  const handleDragStart = (event: DragStartEvent) => {
+    const { active } = event;
+    setActiveDragId(active.id as string);
+  };
+
+  const handleDragEnd = async (event: DragEndEvent) => {
+    const { active, over } = event;
+    setActiveDragId(null);
+
+    if (!over || !currentChapter) return;
+
+    if (active.id !== over.id) {
+      const oldIndex = currentChapter.items.findIndex(
+        (item) => item.id === active.id
+      );
+      const newIndex = currentChapter.items.findIndex(
+        (item) => item.id === over.id
+      );
+
+      const newItems = arrayMove(currentChapter.items, oldIndex, newIndex);
+
+      newItems.forEach((item, idx) => {
+        item.order_index = idx;
+      });
+
+      setCurrentChapter((prev) => prev ? { ...prev, items: newItems } : null);
+
+      try {
+        for (const item of newItems) {
+          await fetch("/api/chapter-items", {
+            method: "PUT",
+            headers: { "Content-Type": "application/json" },
+            body: JSON.stringify({
+              id: item.id,
+              orderIndex: item.order_index,
+            }),
+          });
+        }
+      } catch (error) {
+        console.error("Error reordering:", error);
+        fetchChapters();
+      }
+    }
+  };
+
   return (
     <div className="bg-black text-text-light font-body min-h-screen relative">
       <button
@@ -390,45 +743,47 @@ export default function ChapterSelectionPage() {
             <div className="hidden lg:block absolute top-[90%] left-[5%] right-[5%] h-[2px] bg-muted overflow-hidden">
               <div className="h-full bg-primary w-2/3 shadow-[0_0_10px_#D3BC8E]"></div>
             </div>
-            <div className="flex flex-row gap-12 overflow-x-auto pb-12 pt-8 px-4 snap-x snap-mandatory scroll-smooth items-stretch">
-              {currentChapter?.items.map((item, index) => (
-                <div
-                  key={item.id}
-                  className="min-w-[280px] snap-center group"
-                >
-                  <div 
-                    className="relative bg-surface/80 backdrop-blur-md border border-primary/30 rounded-lg p-6 h-full flex flex-col hover:border-primary transition-all cursor-pointer"
-                    onClick={() => handleChapterClick(item)}
-                  >
-                    {editMode && (
-                      <button
-                        onClick={(e) => {
-                          e.stopPropagation();
-                          deleteChapterItem(item.id);
-                        }}
-                        className="absolute top-2 right-2 text-muted hover:text-red-400"
-                      >
-                        <span className="material-symbols-outlined text-sm">close</span>
-                      </button>
-                    )}
-                    <span className="text-primary text-5xl font-display mb-2">{item.chapter_num || index + 1}</span>
-                    <h3 className="text-primary font-display text-xl mb-2">{item.chapter_title}</h3>
-                    {item.chapter_desc && (
-                      <p className="text-muted text-sm flex-grow">{item.chapter_desc}</p>
-                    )}
-                    <div className="mt-4 flex justify-between items-center">
-                      {!editMode && sequences[item.id] && sequences[item.id].length > 0 && (
-                        <span className="text-xs text-muted">有 {sequences[item.id].length} 個對話序列</span>
-                      )}
-                      {!editMode && (!sequences[item.id] || sequences[item.id].length === 0) && (
-                        <span className="text-xs text-muted/50">尚未建立對話序列</span>
-                      )}
-                      <span className="material-symbols-outlined text-primary group-hover:translate-x-2 transition-transform">arrow_forward</span>
+            <DndContext
+              sensors={sensors}
+              collisionDetection={closestCenter}
+              onDragStart={handleDragStart}
+              onDragEnd={handleDragEnd}
+            >
+              <SortableContext
+                items={currentChapter?.items.map((item) => item.id) || []}
+                strategy={horizontalListSortingStrategy}
+              >
+                <div className="flex flex-row gap-12 overflow-x-auto pb-12 pt-8 px-4 snap-x snap-mandatory scroll-smooth items-stretch">
+                  {currentChapter?.items.map((item, index) => (
+                    <SortableChapterCard
+                      key={item.id}
+                      item={item}
+                      index={index}
+                      editMode={editMode}
+                      sequences={sequences[item.id] || []}
+                      onClick={() => handleChapterClick(item)}
+                      onDelete={() => deleteChapterItem(item.id)}
+                      onEdit={() => handleEditChapterItem(item)}
+                    />
+                  ))}
+                </div>
+              </SortableContext>
+              <DragOverlay>
+                {activeDragId && currentChapter?.items.find((item) => item.id === activeDragId) ? (
+                  <div className="min-w-[280px]">
+                    <div className="bg-surface/80 backdrop-blur-md border border-primary rounded-lg p-6 shadow-2xl">
+                      <span className="text-primary text-5xl font-display">
+                        {currentChapter?.items.find((item) => item.id === activeDragId)?.chapter_num || 
+                         (currentChapter?.items.findIndex((item) => item.id === activeDragId)! + 1)}
+                      </span>
+                      <h3 className="text-primary font-display text-xl mt-2">
+                        {currentChapter?.items.find((item) => item.id === activeDragId)?.chapter_title}
+                      </h3>
                     </div>
                   </div>
-                </div>
-              ))}
-            </div>
+                ) : null}
+              </DragOverlay>
+            </DndContext>
           </div>
         </main>
       </div>

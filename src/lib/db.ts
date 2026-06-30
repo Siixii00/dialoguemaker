@@ -53,9 +53,26 @@ export async function initDatabase() {
       chapter_title TEXT NOT NULL,
       chapter_desc TEXT,
       order_index INTEGER DEFAULT 0,
+      position_x INTEGER DEFAULT 0,
+      position_y INTEGER DEFAULT 0,
+      card_width INTEGER DEFAULT 280,
+      card_height INTEGER DEFAULT 200,
       FOREIGN KEY (chapter_id) REFERENCES chapters(id) ON DELETE CASCADE
     )
   `);
+
+  try {
+    await database.execute(`ALTER TABLE chapter_items ADD COLUMN position_x INTEGER DEFAULT 0`);
+  } catch (e) {}
+  try {
+    await database.execute(`ALTER TABLE chapter_items ADD COLUMN position_y INTEGER DEFAULT 0`);
+  } catch (e) {}
+  try {
+    await database.execute(`ALTER TABLE chapter_items ADD COLUMN card_width INTEGER DEFAULT 280`);
+  } catch (e) {}
+  try {
+    await database.execute(`ALTER TABLE chapter_items ADD COLUMN card_height INTEGER DEFAULT 200`);
+  } catch (e) {}
 
   await database.execute(`
     CREATE TABLE IF NOT EXISTS dialogue_sequences (

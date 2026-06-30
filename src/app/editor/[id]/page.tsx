@@ -2,6 +2,26 @@
 
 import { useState, useEffect, useRef } from "react";
 import { useParams, useRouter } from "next/navigation";
+import {
+  DndContext,
+  DragOverlay,
+  closestCenter,
+  KeyboardSensor,
+  PointerSensor,
+  useSensor,
+  useSensors,
+  DragEndEvent,
+  DragStartEvent,
+  DragOverEvent,
+} from "@dnd-kit/core";
+import {
+  arrayMove,
+  SortableContext,
+  sortableKeyboardCoordinates,
+  useSortable,
+  verticalListSortingStrategy,
+} from "@dnd-kit/sortable";
+import { CSS } from "@dnd-kit/utilities";
 
 interface SequenceItem {
   id: string;
@@ -28,6 +48,205 @@ interface PreviewState {
   dialogue: string;
 }
 
+function SortableItemCard({
+  item,
+  index,
+  isSelected,
+  onSelect,
+  onDelete,
+}: {
+  item: SequenceItem;
+  index: number;
+  isSelected: boolean;
+  onSelect: () => void;
+  onDelete: () => void;
+}) {
+  const {
+    attributes,
+    listeners,
+    setNodeRef,
+    transform,
+    transition,
+    isDragging,
+  } = useSortable({ id: item.id });
+
+  const style = {
+    transform: CSS.Transform.toString(transform),
+    transition,
+    opacity: isDragging ? 0.5 : 1,
+  };
+
+  const itemTypeLabel = (type: string) => {
+    switch (type) {
+      case "background":
+        return "場景底圖";
+      case "character":
+        return "人物立繪";
+      case "dialogue":
+        return "對話文字";
+      default:
+        return type;
+    }
+  };
+
+  const itemTypeIcon = (type: string) => {
+    switch (type) {
+      case "background":
+        return "landscape";
+      case "character":
+        return "person";
+      case "dialogue":
+        return "chat";
+      default:
+        return "layers";
+    }
+  };
+
+  const itemTypeColor = (type: string) => {
+    switch (type) {
+      case "background":
+        return "bg-emerald-500/20 border-emerald-500/50";
+      case "character":
+        return "bg-violet-500/20 border-violet-500/50";
+      case "dialogue":
+        return "bg-amber-500/20 border-amber-500/50";
+      default:
+        return "bg-slate-500/20 border-slate-500/50";
+    }
+  };
+
+  return (
+    <div
+      ref={setNodeRef}
+      style={style}
+      className={`rounded-xl p-4 cursor-pointer transition-all ${
+        itemTypeColor(item.item_type)
+      } ${isSelected ? "ring-2 ring-primary" : ""} ${
+        isDragging ? "shadow-xl scale-105" : "hover:shadow-lg"
+      }`}
+      onClick={onSelect}
+    >
+      <div className="flex items-center justify-between gap-3">
+        <div className="flex items-center gap-3">
+          <div
+            {...attributes}
+            {...listeners}
+            className="text-muted hover:text-primary cursor-grab active:cursor-grabbing"
+          >
+            <span className="material-symbols-outlined">drag_indicator</span>
+          </div>
+          <div className="flex items-center gap-2">
+            <span className="bg-black/30 px-2 py-1 rounded text-xs font-display">
+              {index + 1}
+            </span>
+            <span className="material-symbols-outlined text-primary">
+              {itemTypeIcon(item.item_type)}
+            </span>
+          </div>
+          <div className="flex flex-col">
+            <span className="text-text-light text-sm font-display">
+              {itemTypeLabel(item.item_type)}
+            </span>
+            {item.item_type === "dialogue" && (
+              <span className="text-muted text-xs truncate max-w-[150px]">
+                {item.content.substring(0, 30)}...
+              </span>
+            )}
+            {item.item_type === "character" && item.character_name && (
+              <span className="text-muted text-xs truncate">
+                {item.character_name}
+              </span>
+            )}
+          </div>
+        </div>
+        <div className="flex items-center gap-3">
+          <span className="bg-black/30 px-2 py-1 rounded text-xs font-display">
+            {item.duration / 1000}s
+          </span>
+          <button
+            onClick={(e) => {
+              e.stopPropagation();
+              onDelete();
+            }}
+            className="text-muted hover:text-red-400 transition-colors"
+          >
+            <span className="material-symbols-outlined">delete</span>
+          </button>
+        </div>
+      </div>
+      {item.item_type !== "dialogue" && item.content && (
+        <div className="mt-3 rounded overflow-hidden">
+          <img
+            src={item.content}
+            className="w-full h-20 object-cover"
+            alt="preview"
+          />
+        </div>
+      )}
+    </div>
+  );
+}
+
+function NewElementCard({
+  type,
+  onDragStart,
+}: {
+  type: "background" | "character" | "dialogue";
+  onDragStart: (type: "background" | "character" | "dialogue") => void;
+}) {
+  const itemTypeLabel = (type: string) => {
+    switch (type) {
+      case "background":
+        return "場景底圖";
+      case "character":
+        return "人物立繪";
+      case "dialogue":
+        return "對話文字";
+      default:
+        return type;
+    }
+  };
+
+  const itemTypeIcon = (type: string) => {
+    switch (type) {
+      case "background":
+        return "landscape";
+      case "character":
+        return "person";
+      case "dialogue":
+        return "chat";
+      default:
+        return "layers";
+    }
+  };
+
+  const itemTypeColor = (type: string) => {
+    switch (type) {
+      case "background":
+        return "bg-emerald-600 hover:bg-emerald-500";
+      case "character":
+        return "bg-violet-600 hover:bg-violet-500";
+      case "dialogue":
+        return "bg-amber-600 hover:bg-amber-500";
+      default:
+        return "bg-slate-600 hover:bg-slate-500";
+    }
+  };
+
+  return (
+    <div
+      draggable
+      onDragStart={() => onDragStart(type)}
+      className={`${itemTypeColor(type)} rounded-xl p-4 cursor-grab active:cursor-grabbing transition-all hover:scale-105 hover:shadow-xl flex items-center gap-3`}
+    >
+      <span className="material-symbols-outlined text-white text-2xl">
+        {itemTypeIcon(type)}
+      </span>
+      <span className="text-white font-display">{itemTypeLabel(type)}</span>
+    </div>
+  );
+}
+
 export default function EditorPage() {
   const params = useParams();
   const router = useRouter();
@@ -43,9 +262,20 @@ export default function EditorPage() {
   });
   const [selectedItem, setSelectedItem] = useState<SequenceItem | null>(null);
   const [editingItem, setEditingItem] = useState<SequenceItem | null>(null);
+  const [activeDragId, setActiveDragId] = useState<string | null>(null);
+  const [activeDragType, setActiveDragType] = useState<
+    "background" | "character" | "dialogue" | null
+  >(null);
 
   const bgInputRef = useRef<HTMLInputElement>(null);
   const charInputRef = useRef<HTMLInputElement>(null);
+
+  const sensors = useSensors(
+    useSensor(PointerSensor),
+    useSensor(KeyboardSensor, {
+      coordinateGetter: sortableKeyboardCoordinates,
+    })
+  );
 
   useEffect(() => {
     fetchSequence();
@@ -75,7 +305,10 @@ export default function EditorPage() {
     });
   };
 
-  const handleImageUpload = async (e: React.ChangeEvent<HTMLInputElement>, type: "background" | "character") => {
+  const handleImageUpload = async (
+    e: React.ChangeEvent<HTMLInputElement>,
+    type: "background" | "character"
+  ) => {
     const file = e.target.files?.[0];
     if (!file) return;
 
@@ -130,6 +363,7 @@ export default function EditorPage() {
         prev ? { ...prev, items: [...prev.items, newItem] } : null
       );
       setEditingItem(newItem);
+      setSelectedItem(newItem);
     } catch (error) {
       console.error("Error adding item:", error);
     }
@@ -169,39 +403,63 @@ export default function EditorPage() {
     }
   };
 
-  const moveItem = async (itemId: string, direction: "up" | "down") => {
-    if (!sequence) return;
+  const handleDragStart = (event: DragStartEvent) => {
+    const { active } = event;
+    setActiveDragId(active.id as string);
+    
+    if (typeof active.id === "string" && active.id.startsWith("new-")) {
+      const type = active.id.replace("new-", "") as "background" | "character" | "dialogue";
+      setActiveDragType(type);
+    }
+  };
 
-    const items = [...sequence.items];
-    const index = items.findIndex((item) => item.id === itemId);
+  const handleDragEnd = async (event: DragEndEvent) => {
+    const { active, over } = event;
+    setActiveDragId(null);
+    setActiveDragType(null);
 
-    if (direction === "up" && index > 0) {
-      [items[index], items[index - 1]] = [items[index - 1], items[index]];
-    } else if (direction === "down" && index < items.length - 1) {
-      [items[index], items[index + 1]] = [items[index + 1], items[index]];
+    if (!over || !sequence) return;
+
+    if (typeof active.id === "string" && active.id.startsWith("new-")) {
+      const type = active.id.replace("new-", "") as "background" | "character" | "dialogue";
+      await addItem(type);
+      return;
     }
 
-    items.forEach((item, idx) => {
-      item.display_order = idx;
-    });
+    if (active.id !== over.id) {
+      const oldIndex = sequence.items.findIndex(
+        (item) => item.id === active.id
+      );
+      const newIndex = sequence.items.findIndex(
+        (item) => item.id === over.id
+      );
 
-    try {
-      for (const item of items) {
-        await fetch("/api/sequence-items", {
-          method: "PUT",
-          headers: { "Content-Type": "application/json" },
-          body: JSON.stringify({
-            id: item.id,
-            content: item.content,
-            duration: item.duration,
-            displayOrder: item.display_order,
-            characterName: item.character_name,
-          }),
-        });
+      const newItems = arrayMove(sequence.items, oldIndex, newIndex);
+
+      newItems.forEach((item, idx) => {
+        item.display_order = idx;
+      });
+
+      setSequence((prev) => prev ? { ...prev, items: newItems } : null);
+
+      try {
+        for (const item of newItems) {
+          await fetch("/api/sequence-items", {
+            method: "PUT",
+            headers: { "Content-Type": "application/json" },
+            body: JSON.stringify({
+              id: item.id,
+              content: item.content,
+              duration: item.duration,
+              displayOrder: item.display_order,
+              characterName: item.character_name,
+            }),
+          });
+        }
+      } catch (error) {
+        console.error("Error reordering:", error);
+        fetchSequence();
       }
-      fetchSequence();
-    } catch (error) {
-      console.error("Error moving item:", error);
     }
   };
 
@@ -221,32 +479,6 @@ export default function EditorPage() {
     }
   };
 
-  const itemTypeLabel = (type: string) => {
-    switch (type) {
-      case "background":
-        return "場景底圖";
-      case "character":
-        return "人物立繪";
-      case "dialogue":
-        return "對話文字";
-      default:
-        return type;
-    }
-  };
-
-  const itemTypeIcon = (type: string) => {
-    switch (type) {
-      case "background":
-        return "landscape";
-      case "character":
-        return "person";
-      case "dialogue":
-        return "chat";
-      default:
-        return "layers";
-    }
-  };
-
   if (!sequence) {
     return (
       <div className="bg-black text-text-light font-body h-screen flex items-center justify-center">
@@ -262,7 +494,9 @@ export default function EditorPage() {
           className="absolute inset-0 bg-cover"
           style={{
             backgroundColor: "#1F252F",
-            backgroundImage: previewState.background ? `url('${previewState.background}')` : "none",
+            backgroundImage: previewState.background
+              ? `url('${previewState.background}')`
+              : "none",
           }}
         />
 
@@ -270,7 +504,9 @@ export default function EditorPage() {
           className="absolute bottom-[200px] left-[5%] h-[400px] z-10 pointer-events-none transition-all duration-300"
           style={{
             opacity: previewState.character ? 1 : 0,
-            transform: previewState.character ? "translateX(0)" : "translateX(-50px)",
+            transform: previewState.character
+              ? "translateX(0)"
+              : "translateX(-50px)",
           }}
         >
           {previewState.character && (
@@ -341,109 +577,109 @@ export default function EditorPage() {
           </div>
 
           <div className="border-t border-primary/20 pt-4">
-            <div className="flex justify-between items-center mb-4">
-              <h4 className="font-display text-sm text-primary">序列項目</h4>
-              <div className="flex gap-2">
-                <button
-                  onClick={() => addItem("background")}
-                  className="edit-btn px-3 py-1 rounded text-xs flex items-center gap-1"
+            <h4 className="font-display text-sm text-primary mb-4">
+              拖放新增元素
+            </h4>
+            <DndContext sensors={sensors} collisionDetection={closestCenter}>
+              <div className="grid grid-cols-3 gap-3 mb-6">
+                <div
+                  draggable
+                  onDragStart={() => setActiveDragType("background")}
+                  className="bg-emerald-600 hover:bg-emerald-500 rounded-xl p-3 cursor-grab active:cursor-grabbing transition-all hover:scale-105 flex flex-col items-center gap-2"
                 >
-                  <span className="material-symbols-outlined text-sm">landscape</span>
-                  場景
-                </button>
-                <button
-                  onClick={() => addItem("character")}
-                  className="edit-btn px-3 py-1 rounded text-xs flex items-center gap-1"
+                  <span className="material-symbols-outlined text-white text-xl">
+                    landscape
+                  </span>
+                  <span className="text-white text-xs font-display">場景</span>
+                </div>
+                <div
+                  draggable
+                  onDragStart={() => setActiveDragType("character")}
+                  className="bg-violet-600 hover:bg-violet-500 rounded-xl p-3 cursor-grab active:cursor-grabbing transition-all hover:scale-105 flex flex-col items-center gap-2"
                 >
-                  <span className="material-symbols-outlined text-sm">person</span>
-                  人物
-                </button>
-                <button
-                  onClick={() => addItem("dialogue")}
-                  className="edit-btn px-3 py-1 rounded text-xs flex items-center gap-1"
+                  <span className="material-symbols-outlined text-white text-xl">
+                    person
+                  </span>
+                  <span className="text-white text-xs font-display">人物</span>
+                </div>
+                <div
+                  draggable
+                  onDragStart={() => setActiveDragType("dialogue")}
+                  className="bg-amber-600 hover:bg-amber-500 rounded-xl p-3 cursor-grab active:cursor-grabbing transition-all hover:scale-105 flex flex-col items-center gap-2"
                 >
-                  <span className="material-symbols-outlined text-sm">chat</span>
-                  對話
-                </button>
+                  <span className="material-symbols-outlined text-white text-xl">
+                    chat
+                  </span>
+                  <span className="text-white text-xs font-display">對話</span>
+                </div>
               </div>
-            </div>
+            </DndContext>
+          </div>
 
-            <div className="space-y-2">
-              {sequence.items.length === 0 ? (
-                <p className="text-muted text-sm">尚未添加任何項目，點擊上方按鈕開始添加</p>
-              ) : (
-                sequence.items.map((item, index) => (
-                  <div
-                    key={item.id}
-                    className={`bg-surface/40 rounded-lg p-3 cursor-pointer transition-all ${
-                      selectedItem?.id === item.id ? "border border-primary" : "border border-white/5"
-                    }`}
-                    onClick={() => {
-                      setSelectedItem(item);
-                      setEditingItem(item);
-                    }}
-                  >
-                    <div className="flex items-center justify-between">
-                      <div className="flex items-center gap-3">
-                        <span className="text-muted text-xs">{index + 1}</span>
-                        <span className="material-symbols-outlined text-primary text-sm">
-                          {itemTypeIcon(item.item_type)}
-                        </span>
-                        <div>
-                          <span className="text-text-light text-sm">{itemTypeLabel(item.item_type)}</span>
-                          {item.item_type === "dialogue" && (
-                            <span className="text-muted text-xs ml-2 truncate max-w-[120px]">
-                              {item.content.substring(0, 20)}...
-                            </span>
-                          )}
-                        </div>
-                      </div>
-                      <div className="flex items-center gap-2">
-                        <span className="text-muted text-xs">{item.duration / 1000}s</span>
-                        <div className="flex gap-1">
-                          <button
-                            onClick={(e) => {
-                              e.stopPropagation();
-                              moveItem(item.id, "up");
-                            }}
-                            className="text-muted hover:text-primary"
-                            disabled={index === 0}
-                          >
-                            <span className="material-symbols-outlined text-sm">keyboard_arrow_up</span>
-                          </button>
-                          <button
-                            onClick={(e) => {
-                              e.stopPropagation();
-                              moveItem(item.id, "down");
-                            }}
-                            className="text-muted hover:text-primary"
-                            disabled={index === sequence.items.length - 1}
-                          >
-                            <span className="material-symbols-outlined text-sm">keyboard_arrow_down</span>
-                          </button>
-                          <button
-                            onClick={(e) => {
-                              e.stopPropagation();
-                              deleteItem(item.id);
-                            }}
-                            className="text-muted hover:text-red-400"
-                          >
-                            <span className="material-symbols-outlined text-sm">close</span>
-                          </button>
-                        </div>
-                      </div>
+          <div className="border-t border-primary/20 pt-4">
+            <h4 className="font-display text-sm text-primary mb-4">
+              序列項目（拖放排序）
+            </h4>
+
+            <DndContext
+              sensors={sensors}
+              collisionDetection={closestCenter}
+              onDragStart={handleDragStart}
+              onDragEnd={handleDragEnd}
+            >
+              <SortableContext
+                items={sequence.items.map((item) => item.id)}
+                strategy={verticalListSortingStrategy}
+              >
+                <div className="space-y-3 min-h-[100px]">
+                  {sequence.items.length === 0 ? (
+                    <div className="bg-surface/20 rounded-xl p-6 text-center border border-dashed border-primary/30">
+                      <p className="text-muted text-sm mb-2">
+                        尚未添加任何項目
+                      </p>
+                      <p className="text-muted/50 text-xs">
+                        拖放上方元素卡片到此處
+                      </p>
                     </div>
+                  ) : (
+                    sequence.items.map((item, index) => (
+                      <SortableItemCard
+                        key={item.id}
+                        item={item}
+                        index={index}
+                        isSelected={selectedItem?.id === item.id}
+                        onSelect={() => {
+                          setSelectedItem(item);
+                          setEditingItem(item);
+                        }}
+                        onDelete={() => deleteItem(item.id)}
+                      />
+                    ))
+                  )}
+                </div>
+              </SortableContext>
+
+              <DragOverlay>
+                {activeDragId && sequence.items.find((item) => item.id === activeDragId) ? (
+                  <div className="opacity-80">
+                    <SortableItemCard
+                      item={sequence.items.find((item) => item.id === activeDragId)!}
+                      index={sequence.items.findIndex((item) => item.id === activeDragId)}
+                      isSelected={false}
+                      onSelect={() => {}}
+                      onDelete={() => {}}
+                    />
                   </div>
-                ))
-              )}
-            </div>
+                ) : null}
+              </DragOverlay>
+            </DndContext>
           </div>
 
           {editingItem && (
             <div className="border-t border-primary/20 pt-4">
               <div className="flex justify-between items-center mb-4">
                 <h4 className="font-display text-sm text-primary">
-                  編輯 {itemTypeLabel(editingItem.item_type)}
+                  編輯項目
                 </h4>
                 <button
                   onClick={() => setEditingItem(null)}
@@ -455,13 +691,17 @@ export default function EditorPage() {
 
               <div className="space-y-4">
                 <div className="space-y-2">
-                  <label className="font-display text-xs text-primary">顯示時間（毫秒）</label>
+                  <label className="font-display text-xs text-primary">
+                    顯示時間（毫秒）
+                  </label>
                   <input
                     type="number"
                     value={editingItem.duration}
                     onChange={(e) =>
                       setEditingItem((prev) =>
-                        prev ? { ...prev, duration: parseInt(e.target.value) || 3000 } : null
+                        prev
+                          ? { ...prev, duration: parseInt(e.target.value) || 3000 }
+                          : null
                       )
                     }
                     className="edit-input w-full px-4 py-2 rounded"
@@ -472,7 +712,9 @@ export default function EditorPage() {
 
                 {editingItem.item_type === "background" && (
                   <div className="space-y-2">
-                    <label className="font-display text-xs text-primary">場景底圖</label>
+                    <label className="font-display text-xs text-primary">
+                      場景底圖
+                    </label>
                     <input
                       ref={bgInputRef}
                       type="file"
@@ -483,7 +725,7 @@ export default function EditorPage() {
                     <div className="flex gap-2">
                       <button
                         onClick={() => bgInputRef.current?.click()}
-                        className="edit-btn px-4 py-2 rounded"
+                        className="edit-btn px-4 py-2 rounded flex-1"
                       >
                         {loading ? "上傳中..." : "上傳圖片"}
                       </button>
@@ -491,7 +733,7 @@ export default function EditorPage() {
                     {editingItem.content && (
                       <img
                         src={editingItem.content}
-                        className="max-w-[100px] max-h-[60px] rounded mt-2"
+                        className="w-full h-32 object-cover rounded mt-2"
                         alt="Background preview"
                       />
                     )}
@@ -501,20 +743,26 @@ export default function EditorPage() {
                 {editingItem.item_type === "character" && (
                   <>
                     <div className="space-y-2">
-                      <label className="font-display text-xs text-primary">角色名稱</label>
+                      <label className="font-display text-xs text-primary">
+                        角色名稱
+                      </label>
                       <input
                         type="text"
                         value={editingItem.character_name || ""}
                         onChange={(e) =>
                           setEditingItem((prev) =>
-                            prev ? { ...prev, character_name: e.target.value } : null
+                            prev
+                              ? { ...prev, character_name: e.target.value }
+                              : null
                           )
                         }
                         className="edit-input w-full px-4 py-2 rounded"
                       />
                     </div>
                     <div className="space-y-2">
-                      <label className="font-display text-xs text-primary">人物立繪</label>
+                      <label className="font-display text-xs text-primary">
+                        人物立繪
+                      </label>
                       <input
                         ref={charInputRef}
                         type="file"
@@ -525,7 +773,7 @@ export default function EditorPage() {
                       <div className="flex gap-2">
                         <button
                           onClick={() => charInputRef.current?.click()}
-                          className="edit-btn px-4 py-2 rounded"
+                          className="edit-btn px-4 py-2 rounded flex-1"
                         >
                           {loading ? "上傳中..." : "上傳圖片"}
                         </button>
@@ -533,7 +781,7 @@ export default function EditorPage() {
                       {editingItem.content && (
                         <img
                           src={editingItem.content}
-                          className="max-w-[100px] max-h-[60px] rounded mt-2"
+                          className="w-full h-32 object-cover rounded mt-2"
                           alt="Character preview"
                         />
                       )}
@@ -543,7 +791,9 @@ export default function EditorPage() {
 
                 {editingItem.item_type === "dialogue" && (
                   <div className="space-y-2">
-                    <label className="font-display text-xs text-primary">對話文字</label>
+                    <label className="font-display text-xs text-primary">
+                      對話文字
+                    </label>
                     <textarea
                       value={editingItem.content}
                       onChange={(e) =>
@@ -551,7 +801,7 @@ export default function EditorPage() {
                           prev ? { ...prev, content: e.target.value } : null
                         )
                       }
-                      className="edit-input w-full px-4 py-3 rounded h-24 resize-none"
+                      className="edit-input w-full px-4 py-3 rounded h-32 resize-none"
                     />
                   </div>
                 )}
@@ -568,6 +818,26 @@ export default function EditorPage() {
           )}
         </div>
       </div>
+
+      {activeDragType && (
+        <div
+          className="fixed inset-0 z-[100] bg-primary/10 backdrop-blur-sm flex items-center justify-center"
+          onDragOver={(e) => e.preventDefault()}
+          onDrop={() => {
+            addItem(activeDragType);
+            setActiveDragType(null);
+          }}
+        >
+          <div className="text-center">
+            <span className="material-symbols-outlined text-primary text-6xl mb-4">
+              add_circle
+            </span>
+            <p className="text-primary font-display text-lg">
+              放開以新增元素
+            </p>
+          </div>
+        </div>
+      )}
     </div>
   );
 }
