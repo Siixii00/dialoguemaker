@@ -1,29 +1,51 @@
 import { NextRequest, NextResponse } from "next/server";
-import { db } from "@/lib/db";
+import { db, initDatabase } from "@/lib/db";
+
+const DEFAULT_ADMIN_EMAIL = "yaninlin@gmail.com";
+const DEFAULT_GOOGLE_CLIENT_ID = "807013160344-ircr1f9gmb9gv7617ilc7asfecv737d5.apps.googleusercontent.com";
 
 export async function GET(request: NextRequest) {
   const searchParams = request.nextUrl.searchParams;
   const code = searchParams.get("code");
   const error = searchParams.get("error");
 
+  const baseUrl = request.nextUrl.origin;
+
   if (error) {
-    return NextResponse.redirect(new URL(`/chapters?error=${error}`, request.url));
+    console.error("OAuth error:", error);
+    return NextResponse.redirect(`${baseUrl}/chapters?auth_error=${error}`);
   }
 
   if (!code) {
-    return NextResponse.redirect(new URL("/chapters?error=no_code", request.url));
+    return NextResponse.redirect(`${baseUrl}/chapters?auth_error=no_code`);
   }
 
   try {
-    const configResult = await db.execute({
-      sql: "SELECT google_client_id FROM admin_config WHERE id = 'default'",
-    });
+    await initDatabase();
 
-    if (configResult.rows.length === 0) {
-      return NextResponse.redirect(new URL("/chapters?error=no_config", request.url));
+    let clientId = DEFAULT_GOOGLE_CLIENT_ID;
+    let adminEmail = DEFAULT_ADMIN_EMAIL;
+    let twoFactorEnabled = false;
+
+    try {
+      const configResult = await db.execute({
+        sql: "SELECT google_client_id, admin_email, two_factor_enabled FROM admin_config WHERE id = 'default'",
+      });
+
+      if (configResult.rows.length > 0) {
+        clientId = configResult.rows[0].google_client_id as string || DEFAULT_GOOGLE_CLIENT_ID;
+        adminEmail = configResult.rows[0].admin_email as string || DEFAULT_ADMIN_EMAIL;
+        twoFactorEnabled = configResult.rows[0].two_factor_enabled === 1;
+      }
+    } catch (dbError) {
+      console.log("Using default config");
     }
 
-    const clientId = configResult.rows[0].google_client_id as string;
+    const clientSecret = process.env.GOOGLE_CLIENT_SECRET;
+    if (!clientSecret) {
+      console.error("Missing GOOGLE_CLIENT_SECRET");
+      return NextResponse.redirect(`${baseUrl}/chapters?auth_error=missing_secret`);
+    }
 
     const tokenResponse = await fetch("https://oauth2.googleapis.com/token", {
       method: "POST",
@@ -31,8 +53,8 @@ export async function GET(request: NextRequest) {
       body: new URLSearchParams({
         code,
         client_id: clientId,
-        client_secret: process.env.GOOGLE_CLIENT_SECRET || "",
-        redirect_uri: `${request.nextUrl.origin}/api/auth/callback`,
+        client_secret: clientSecret,
+        redirect_uri: `${baseUrl}/api/auth/callback`,
         grant_type: "authorization_code",
       }),
     });
@@ -40,7 +62,8 @@ export async function GET(request: NextRequest) {
     const tokenData = await tokenResponse.json();
 
     if (!tokenData.access_token) {
-      return NextResponse.redirect(new URL("/chapters?error=token_failed", request.url));
+      console.error("Token error:", tokenData);
+      return NextResponse.redirect(`${baseUrl}/chapters?auth_error=token_failed`);
     }
 
     const userInfoResponse = await fetch("https://www.googleapis.com/oauth2/v2/userinfo", {
@@ -50,49 +73,15 @@ export async function GET(request: NextRequest) {
     const userInfo = await userInfoResponse.json();
     const userEmail = userInfo.email;
 
-    const adminResult = await db.execute({
-      sql: "SELECT admin_email, two_factor_enabled FROM admin_config WHERE id = 'default'",
-    });
-
-    if (adminResult.rows.length === 0) {
-      return NextResponse.redirect(new URL("/chapters?error=no_admin", request.url));
-    }
-
-    const adminEmail = adminResult.rows[0].admin_email as string;
-    const twoFactorEnabled = adminResult.rows[0].two_factor_enabled as number;
-
     if (userEmail !== adminEmail) {
-      return NextResponse.redirect(new URL("/chapters?error=wrong_email", request.url));
+      return NextResponse.redirect(`${baseUrl}/chapters?auth_error=wrong_email`);
     }
 
-    const response = NextResponse.redirect(new URL("/chapters", request.url));
+    const response = NextResponse.redirect(`${baseUrl}/chapters?auth_success=true&email=${encodeURIComponent(userEmail)}&require_2fa=${twoFactorEnabled}`);
     
-    response.cookies.set("auth_email", userEmail, {
-      httpOnly: true,
-      secure: true,
-      sameSite: "lax",
-      maxAge: 60 * 60,
-    });
-
-    response.cookies.set("auth_pending", "true", {
-      httpOnly: true,
-      secure: true,
-      sameSite: "lax",
-      maxAge: 60 * 5,
-    });
-
-    if (twoFactorEnabled === 1) {
-      response.cookies.set("require_2fa", "true", {
-        httpOnly: true,
-        secure: true,
-        sameSite: "lax",
-        maxAge: 60 * 5,
-      });
-    }
-
     return response;
   } catch (error) {
     console.error("OAuth callback error:", error);
-    return NextResponse.redirect(new URL("/chapters?error=server_error", request.url));
+    return NextResponse.redirect(`${baseUrl}/chapters?auth_error=server_error`);
   }
 }

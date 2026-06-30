@@ -55,12 +55,21 @@ export default function ChapterSelectionPage() {
   }, []);
 
   const checkOAuthCallback = async () => {
-    const pendingLogin = sessionStorage.getItem("pendingLogin");
-    const authEmail = document.cookie.split("; ").find(row => row.startsWith("auth_email="))?.split("=")[1];
-    const require2FA = document.cookie.split("; ").find(row => row.startsWith("require_2fa="))?.split("=")[1];
+    const urlParams = new URLSearchParams(window.location.search);
+    const authSuccess = urlParams.get("auth_success");
+    const authError = urlParams.get("auth_error");
+    const authEmail = urlParams.get("email");
+    const require2FA = urlParams.get("require_2fa");
 
-    if (pendingLogin && authEmail) {
-      sessionStorage.removeItem("pendingLogin");
+    if (authError) {
+      setAuthError(`登入失敗: ${authError}`);
+      setShowLoginModal(true);
+      window.history.replaceState({}, "", "/chapters");
+      return;
+    }
+
+    if (authSuccess === "true" && authEmail) {
+      window.history.replaceState({}, "", "/chapters");
       setGoogleUserEmail(authEmail);
 
       if (require2FA === "true") {
@@ -77,6 +86,9 @@ export default function ChapterSelectionPage() {
           setShow2FASetup(true);
         } else if (data.error === "2FA 已設定，請使用驗證碼登入") {
           setShow2FAVerify(true);
+        } else {
+          setAuthError(data.error || "設定 2FA 失敗");
+          setShowLoginModal(true);
         }
       }
     }

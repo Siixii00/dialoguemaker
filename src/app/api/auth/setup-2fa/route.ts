@@ -1,56 +1,75 @@
 import { NextRequest, NextResponse } from "next/server";
-import { db } from "@/lib/db";
-import * as OTPAuth from "otpauth";
-import QRCode from "qrcode";
+import { db, initDatabase } from "@/lib/db";
+import { randomBytes } from "crypto";
+
+const DEFAULT_ADMIN_EMAIL = "yaninlin@gmail.com";
+
+function generateSecret(): string {
+  const chars = "ABCDEFGHIJKLMNOPQRSTUVWXYZ234567";
+  const bytes = randomBytes(20);
+  let secret = "";
+  for (let i = 0; i < 16; i++) {
+    secret += chars[bytes[i] % chars.length];
+  }
+  return secret;
+}
+
+function generateQRCodeUrl(email: string, secret: string): string {
+  const issuer = encodeURIComponent("對話編輯器");
+  const label = encodeURIComponent(email);
+  return `otpauth://totp/${issuer}:${label}?secret=${secret}&issuer=${issuer}&algorithm=SHA1&digits=6&period=30`;
+}
 
 export async function POST(request: NextRequest) {
   try {
     const body = await request.json();
     const { email } = body;
 
-    const configResult = await db.execute({
-      sql: "SELECT admin_email FROM admin_config WHERE id = 'default'",
-    });
+    await initDatabase();
 
-    if (configResult.rows.length === 0) {
-      return NextResponse.json({ error: "尚未設定管理員" }, { status: 404 });
+    let adminEmail = DEFAULT_ADMIN_EMAIL;
+    let existingSecret = null;
+    let twoFactorEnabled = false;
+
+    try {
+      const configResult = await db.execute({
+        sql: "SELECT admin_email, two_factor_secret, two_factor_enabled FROM admin_config WHERE id = 'default'",
+      });
+
+      if (configResult.rows.length > 0) {
+        adminEmail = configResult.rows[0].admin_email as string || DEFAULT_ADMIN_EMAIL;
+        existingSecret = configResult.rows[0].two_factor_secret;
+        twoFactorEnabled = configResult.rows[0].two_factor_enabled === 1;
+      }
+    } catch (dbError) {
+      console.log("Database not initialized, using defaults");
     }
-
-    const adminEmail = configResult.rows[0].admin_email as string;
 
     if (email !== adminEmail) {
       return NextResponse.json({ error: "Email 不符合管理員設定" }, { status: 403 });
     }
 
-    const existing2FA = await db.execute({
-      sql: "SELECT two_factor_secret, two_factor_enabled FROM admin_config WHERE id = 'default'",
-    });
-
-    if (existing2FA.rows[0].two_factor_enabled === 1) {
+    if (twoFactorEnabled && existingSecret) {
       return NextResponse.json({ error: "2FA 已設定，請使用驗證碼登入" }, { status: 400 });
     }
 
-    const secret = new OTPAuth.Secret();
-    const totp = new OTPAuth.TOTP({
-      algorithm: "SHA-1",
-      digits: 6,
-      period: 30,
-      secret: secret.base32,
-      label: adminEmail,
-      issuer: "對話編輯器",
-    });
+    const secret = existingSecret || generateSecret();
+    const otpauthUrl = generateQRCodeUrl(email, secret);
 
-    const otpauthUrl = totp.toString();
-    const qrCodeUrl = await QRCode.toDataURL(otpauthUrl);
+    try {
+      await db.execute({
+        sql: "UPDATE admin_config SET two_factor_secret = ? WHERE id = 'default'",
+        args: [secret],
+      });
+    } catch (dbError) {
+      console.log("Could not save secret to database");
+    }
 
-    await db.execute({
-      sql: "UPDATE admin_config SET two_factor_secret = ? WHERE id = 'default'",
-      args: [secret.base32],
-    });
+    const qrCodeUrl = `https://api.qrserver.com/v1/create-qr-code/?size=200x200&data=${encodeURIComponent(otpauthUrl)}`;
 
     return NextResponse.json({
       qrCodeUrl,
-      secret: secret.base32,
+      secret,
       message: "請使用 Google Authenticator 或其他 TOTP App 掃描 QR Code",
     });
   } catch (error) {
