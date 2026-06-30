@@ -2,16 +2,5 @@
   "buildCommand": "next build",
   "devCommand": "next dev",
   "installCommand": "npm install",
-  "framework": "nextjs",
-  "regions": ["iad1"],
-  "env": {
-    "TURSO_DATABASE_URL": {
-      "description": "Turso database URL (libsql://your-db.turso.io)",
-      "value": ""
-    },
-    "TURSO_AUTH_TOKEN": {
-      "description": "Turso authentication token",
-      "value": ""
-    }
-  }
+  "framework": "nextjs"
 }
