@@ -20,12 +20,13 @@ function base32ToHex(base32: string): string {
   return hex;
 }
 
-function hexToBytes(hex: string): Uint8Array {
-  const bytes = new Uint8Array(hex.length / 2);
+function hexToBytes(hex: string): ArrayBuffer {
+  const buffer = new ArrayBuffer(hex.length / 2);
+  const bytes = new Uint8Array(buffer);
   for (let i = 0; i < hex.length; i += 2) {
     bytes[i / 2] = parseInt(hex.slice(i, i + 2), 16);
   }
-  return bytes;
+  return buffer;
 }
 
 async function sha1(message: Uint8Array): Promise<Uint8Array> {
